@@ -2,7 +2,11 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { useAuthStore } from '../store/auth.store';
 
-export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+
+// Thay vì: import.meta.env.VITE_API_URL
+const rawBaseUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001/api/v1';
+
+export const BASE_URL = rawBaseUrl.replace(/[\[\]\(\)\s]/g, '');
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
