@@ -1,0 +1,8 @@
+{
+  "name": "UTEHY Social - Quản lý Sự kiện Ngoại khóa",
+  "description": "Nền tảng mạng xã hội tích hợp quản lý sự kiện, điểm danh QR và tính điểm rèn luyện cho sinh viên UTEHY.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
