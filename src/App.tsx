@@ -31,7 +31,7 @@ import { EventApproval } from './pages/admin/EventApproval';
 import { StudentManagement } from './pages/admin/StudentManagement';
 import { Dashboard as AdminDashboard } from './pages/admin/Dashboard';
 // import { SystemDashboard } from './pages/admin/SystemDashboard';
-// import { ClubManagement } from './pages/admin/ClubManagement';
+import { ClubManagement } from './pages/admin/ClubManagement';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToasterSetup } from './components/ui/ToasterSetup';
 
@@ -120,7 +120,7 @@ export default function App() {
               <Route index element={<AdminDashboard />} />
               {/* Routes temporarily disabled due to missing backend APIs */}
               {/* <Route path="system" element={<SystemDashboard />} /> */}
-              {/* <Route path="clubs" element={<ClubManagement />} /> */}
+              <Route path="clubs" element={<ClubManagement />} /> 
               <Route path="events" element={<EventApproval />} />
               <Route path="pages" element={<PageManagement />} />
               <Route path="categories" element={<CategoryManagement />} />
