@@ -10,6 +10,11 @@ export const adminApi = {
   getTrainingPointsReport: (params?: { page?: number; limit?: number }) =>
     apiClient.get('/admin/reports/training-points', { params }),
 
+  exportTrainingPoints: () =>
+    apiClient.get('/admin/reports/training-points/export', {
+      responseType: 'blob',
+    }),
+
   getPagesReport: () =>
     apiClient.get('/admin/reports/pages'),
 
@@ -31,25 +36,4 @@ export const adminApi = {
   createBadge: (data: any) =>
     apiClient.post('/admin/badges', data),
 
-  // ── Quản lý thành viên CLB ────────────────────────────
-  getMembers: (pageId: string) =>
-    apiClient.get(`/pages/${pageId}/members`),
-
-  joinPage: (pageId: string, data?: { message?: string }) =>
-    apiClient.post(`/pages/${pageId}/join`, data),
-
-  getJoinRequests: (pageId: string) =>
-    apiClient.get(`/pages/${pageId}/join-requests`),
-
-  approveJoinRequest: (pageId: string, userId: string) =>
-    apiClient.patch(`/pages/${pageId}/join-requests/${userId}/approve`),
-
-  rejectJoinRequest: (pageId: string, userId: string) =>
-    apiClient.patch(`/pages/${pageId}/join-requests/${userId}/reject`),
-
-  updateMemberRole: (pageId: string, userId: string, role: 'CHUNHIEM' | 'PHOCHUNHIEM' | 'THANHVIEN') =>
-    apiClient.patch(`/pages/${pageId}/members/${userId}/role`, { role }),
-
-  kickMember: (pageId: string, userId: string) =>
-    apiClient.delete(`/pages/${pageId}/members/${userId}/kick`),
 };

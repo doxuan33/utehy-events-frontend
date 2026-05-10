@@ -15,6 +15,8 @@ export interface AuthUser {
   faculty?: string;
   phone?: string;
   bio?: string;
+  managed_page?: { id: string } | null;
+  page_id?: string;
 }
 
 interface AuthState {

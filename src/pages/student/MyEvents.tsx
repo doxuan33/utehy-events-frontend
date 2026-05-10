@@ -7,26 +7,44 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Calendar,
   CheckCircle2,
-  XCircle,
   Clock,
   ArrowLeft,
   Award,
-  QrCode,
   MapPin,
-  Users
+  QrCode,
+  X
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { format, isAfter, isBefore } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { QRCodeSVG } from 'qrcode.react';
 
 type TabMode = 'upcoming' | 'history';
+
+interface Registration {
+  id: string;
+  status: string;
+  created_at: string;
+  event?: {
+    id: string;
+    title: string;
+    start_time: string;
+    end_time: string;
+    location?: string;
+    training_points?: number;
+    _count?: {
+      registrations: number;
+    };
+  };
+}
 
 export const MyEvents = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabMode>('upcoming');
+  const [selectedQr, setSelectedQr] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMyEvents = async () => {
@@ -44,7 +62,6 @@ export const MyEvents = () => {
     fetchMyEvents();
   }, []);
 
-  // Separate upcoming and past events
   const now = new Date();
   const upcomingEvents = registrations.filter(reg => {
     const eventDate = new Date(reg.event?.start_time || reg.created_at);
@@ -56,7 +73,6 @@ export const MyEvents = () => {
     return isBefore(eventDate, now) && reg.status !== 'REGISTERED';
   });
 
-  // Calculate stats
   const totalEvents = registrations.length;
   const totalPoints = registrations
     .filter(r => r.status === 'ATTENDED')
@@ -67,7 +83,7 @@ export const MyEvents = () => {
       case 'ATTENDED':
         return {
           variant: 'success' as const,
-          label: 'Đã tham gia',
+          label: 'Đã duyệt',
           className: 'bg-emerald-100 text-emerald-700 border border-emerald-200'
         };
       case 'ABSENT':
@@ -78,10 +94,14 @@ export const MyEvents = () => {
       default:
         return {
           variant: 'primary' as const,
-          label: 'Đã đăng ký',
-          className: 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+          label: 'Chờ duyệt',
+          className: 'bg-amber-100 text-amber-700 border border-amber-200'
         };
     }
+  };
+
+  const getQrValue = (reg: Registration) => {
+    return user?.student_id || reg.id;
   };
 
   const displayedEvents = activeTab === 'upcoming' ? upcomingEvents : pastEvents;
@@ -168,7 +188,7 @@ export const MyEvents = () => {
       {isLoading ? (
         <div className="space-y-4">
           {[1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="h-28 bg-white rounded-3xl animate-pulse border border-gray-100" />
+            <div key={i} className="h-20 bg-white rounded-3xl animate-pulse border border-gray-100" />
           ))}
         </div>
       ) : displayedEvents.length === 0 ? (
@@ -213,6 +233,7 @@ export const MyEvents = () => {
               const eventDate = new Date(event?.start_time || reg.created_at);
               const statusBadge = getStatusBadge(reg.status);
               const isUpcoming = isAfter(eventDate, now) || reg.status === 'REGISTERED';
+              const points = event?.training_points || 0;
 
               return (
                 <motion.div
@@ -223,110 +244,75 @@ export const MyEvents = () => {
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
                 >
-                  {/* Event Banner */}
-                  <div className="relative h-32 bg-gradient-to-br from-emerald-100 to-teal-100 overflow-hidden">
-                    {event?.banner_url ? (
-                      <img
-                        src={event.banner_url}
-                        alt={event?.title}
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Calendar className="h-12 w-12 text-emerald-300" />
-                      </div>
-                    )}
-                    <div className="absolute top-3 left-3">
-                      <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-xl shadow-sm flex flex-col items-center min-w-[50px]">
-                        <span className="text-[10px] font-bold text-emerald-600 uppercase">
-                          {format(eventDate, 'MMM', { locale: vi })}
-                        </span>
-                        <span className="text-lg font-black text-gray-900 leading-none">
-                          {format(eventDate, 'dd')}
-                        </span>
+                  {/* Ticket Design */}
+                  <div className="flex relative">
+                    {/* Left Side - Event Info (70%) */}
+                    <div className="flex-1 p-5 pr-4">
+                      <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2">
+                        {event?.title}
+                      </h3>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Clock className="h-4 w-4 mr-2 text-emerald-600" />
+                          <span className="font-medium">
+                            {format(eventDate, 'EEEE, dd/MM/yyyy HH:mm', { locale: vi })}
+                          </span>
+                        </div>
+
+                        {event?.location && (
+                          <div className="flex items-center text-sm text-gray-600">
+                            <MapPin className="h-4 w-4 mr-2 text-red-600" />
+                            <span className="font-medium truncate">{event.location}</span>
+                          </div>
+                        )}
+
+                        {points > 0 && (
+                          <div className="flex items-center text-sm text-emerald-600">
+                            <Award className="h-4 w-4 mr-2" />
+                            <span className="font-medium">+{points} điểm rèn luyện</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    {isUpcoming && (
-                      <div className="absolute top-3 right-3">
-                        <span className="px-3 py-1 bg-emerald-500 text-white rounded-full text-[10px] font-bold flex items-center shadow-lg">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Sắp diễn ra
-                        </span>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Content */}
-                  <div className="p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-gray-900 line-clamp-2 mb-3">
-                          {event?.title}
-                        </h3>
+                    {/* Tear Line */}
+                    <div className="absolute top-0 bottom-0 left-[70%] w-px border-l-2 border-dashed border-gray-200"></div>
 
-                        <div className="space-y-2.5">
-                          <div className="flex items-center text-sm text-gray-600">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center mr-3 text-emerald-600">
-                              <Calendar className="h-4 w-4" />
-                            </div>
-                            <span className="font-medium">
-                              {format(eventDate, 'EEEE, dd/MM/yyyy', { locale: vi })}
-                            </span>
-                          </div>
-                          {event?.location && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center mr-3 text-red-600">
-                                <MapPin className="h-4 w-4" />
-                              </div>
-                              <span className="font-medium truncate">{event.location}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center text-sm text-gray-600">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center mr-3 text-emerald-600">
-                              <Users className="h-4 w-4" />
-                            </div>
-                            <span className="font-medium">
-                              {event?._count?.registrations || 0} người đã đăng ký
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                    {/* Cutout circles for tear line effect */}
+                    <div className="absolute -top-3 left-[calc(70%-6px)] w-6 h-6 bg-gray-50 rounded-full"></div>
+                    <div className="absolute -bottom-3 left-[calc(70%-6px)] w-6 h-6 bg-gray-50 rounded-full"></div>
 
-                      <div className="flex flex-col items-end space-y-2">
+                    {/* Right Side - Status & Action (30%) */}
+                    <div className="w-[30%] p-5 pl-6 flex flex-col items-center justify-center space-y-3">
+                      {event && (
                         <Badge
                           variant={statusBadge.variant}
-                          className="px-3 py-1 font-bold text-xs"
+                          className={`px-3 py-1 font-bold text-xs whitespace-nowrap ${statusBadge.className}`}
                         >
                           {statusBadge.label}
                         </Badge>
+                      )}
 
-                        {isUpcoming && reg.status === 'REGISTERED' && (
-                          <Link to={`/events/${event?.id}/ticket`}>
-                            <Button
-                              size="sm"
-                              className="rounded-xl bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-100"
-                            >
-                              <QrCode className="h-4 w-4 mr-1.5" />
-                              Vé / QR
-                            </Button>
-                          </Link>
-                        )}
-                        <Link to={`/events/${event?.id}`}>
+                      {(event && isUpcoming && reg.status === 'REGISTERED') && (
+                        <Button
+                          size="sm"
+                          onClick={() => setSelectedQr(getQrValue(reg))}
+                          className="rounded-xl bg-emerald-500 hover:bg-emerald-600 shadow-sm"
+                        >
+                          <QrCode className="h-4 w-4 mr-1.5" />
+                          Xem Mã QR
+                        </Button>
+                      )}
+
+                      {event && (
+                        <Link to={`/events/${event.id}`}>
                           <Button variant="ghost" size="sm" className="rounded-xl text-emerald-600 font-bold">
                             Chi tiết
                           </Button>
                         </Link>
-                      </div>
+                      )}
                     </div>
-
-                    {/* Training Points */}
-                    {event?.training_points > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-50 flex items-center text-sm text-emerald-600">
-                        <Award className="h-4 w-4 mr-1.5" />
-                        <span className="font-medium">+{event.training_points} điểm rèn luyện</span>
-                      </div>
-                    )}
                   </div>
                 </motion.div>
               );
@@ -334,6 +320,54 @@ export const MyEvents = () => {
           </AnimatePresence>
         </motion.div>
       )}
+
+      {/* QR Modal */}
+      <AnimatePresence>
+        {selectedQr && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedQr(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setSelectedQr(null)}
+                className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
+
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-6">Mã QR Điểm danh</h2>
+
+              <div className="flex justify-center mb-6">
+                <div className="p-4 bg-white rounded-2xl shadow-inner">
+                  <QRCodeSVG value={selectedQr} size={256} />
+                </div>
+              </div>
+
+              <p className="text-center font-bold text-amber-600 mb-6">
+                Đưa mã này cho Ban tổ chức để điểm danh
+              </p>
+
+              <Button
+                onClick={() => setSelectedQr(null)}
+                className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-600"
+              >
+                Đóng
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

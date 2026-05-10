@@ -83,7 +83,7 @@ export const MembersManagement = () => {
   const fetchPageId = async () => {
     try {
       const res = await pagesApi.getAll();
-      const pages = res.data.data?.data || res.data.data || [];
+      const pages = res.data.data || [];
       if (pages.length > 0) {
         setPageId(pages[0].id);
       }

@@ -1,5 +1,5 @@
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { checkinApi } from '@/api/checkin.api';
 import { eventsApi } from '@/api/events.api';

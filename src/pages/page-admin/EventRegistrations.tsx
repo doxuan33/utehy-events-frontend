@@ -41,9 +41,11 @@ type Registration = {
   registered_at: string;
 };
 
+// ĐÃ SỬA: Thêm page_id vào type
 type Event = {
   id: string;
   title: string;
+  page_id: string; 
   max_slots?: number;
   _count?: {
     registrations: number;
@@ -74,18 +76,48 @@ export const EventRegistrations = () => {
   const fetchInitialData = async () => {
     if (!eventId) return;
     setIsLoading(true);
+    
     try {
+      // 1. Gọi API sự kiện
       const eventRes = await eventsApi.getById(eventId);
-      setEvent(eventRes.data.data);
+      const eventData = eventRes.data.data;
+      setEvent(eventData);
 
-      const regRes = await registrationsApi.getEventRegistrations(eventId, '');
-      // Sort by registration date (newest first) - FRONTEND SORTING
-      const sortedReg = [...regRes.data.data].sort((a: Registration, b: Registration) =>
-        new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime()
-      );
-      setRegistrations(sortedReg);
+      // 2. Lấy page_id từ sự kiện (Lối tắt)
+      const currentPageId = eventData.page_id;
+
+      if (!currentPageId) {
+        toast.error('Sự kiện này không thuộc Fanpage nào!');
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. Gọi API lấy danh sách đăng ký
+      const regRes = await registrationsApi.getEventRegistrations(eventId, currentPageId);
+      
+      // ĐÃ SỬA: Bóc tách mảng dữ liệu an toàn
+      // Backend trả về: regRes.data = { success, message, data: { data: [...], meta: {...}, event: {...} } }
+      // Vậy mảng thực sự nằm ở: regRes.data.data.data
+      const rawPayload = regRes.data?.data;
+      const registrationArray = rawPayload?.data;
+
+      if (Array.isArray(registrationArray)) {
+        // Nếu bóc tách thành công một Mảng, tiến hành sắp xếp
+        const sortedReg = [...registrationArray].sort((a: Registration, b: Registration) =>
+          new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime()
+        );
+        setRegistrations(sortedReg);
+      } else {
+        // Nếu không có dữ liệu hoặc lỗi cấu trúc
+        setRegistrations([]);
+        console.warn('Lưu ý: Không có mảng dữ liệu trả về hợp lệ từ API.');
+      }
+      
     } catch (err: any) {
+      // ĐÃ SỬA: Thêm console.error để dễ debug
+      console.error('Lỗi khi fetch dữ liệu registrations:', err);
       toast.error(err.response?.data?.message || 'Không thể tải dữ liệu');
+      setRegistrations([]); // Reset mảng nếu lỗi để tránh crash UI
     } finally {
       setIsLoading(false);
     }
@@ -480,28 +512,6 @@ export const EventRegistrations = () => {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Làm mới
               </Button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Success Modal */}
-      <AnimatePresence>
-        {showSuccessModal && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          >
-            <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm mx-4 text-center">
-              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Điểm danh thành công!</h3>
-              <p className="text-gray-600">
-                {showSuccessModal.name} <span className="font-mono">({showSuccessModal.id})</span>
-              </p>
             </div>
           </motion.div>
         )}

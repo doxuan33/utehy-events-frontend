@@ -180,26 +180,36 @@ export const Profile = () => {
             <div className="lg:col-span-1 space-y-6">
               <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">Ảnh đại diện</h3>
-                <div className="flex flex-col items-center">
-                  <div className="relative group">
-                <Avatar
-                  src={displayAvatar}
-                  name={user?.full_name}
-                  size="xl"
-                  className="border-4 border-white shadow-lg"
-                />
-                    <button
-                      onClick={handleAvatarClick}
-                      className="absolute -bottom-2 -right-2 p-2.5 bg-emerald-500 text-white rounded-full shadow-lg hover:bg-emerald-600 transition-all group-hover:scale-105"
-                    >
-                      <Camera className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-4 text-center">Nhấn vào biểu tượng máy ảnh để thay đổi ảnh đại diện</p>
-                  {selectedFile && (
-                    <p className="text-xs text-emerald-600 font-medium mt-2">{selectedFile.name}</p>
-                  )}
-                </div>
+<div className="flex flex-col items-center">
+<div className="relative group cursor-pointer" onClick={handleAvatarClick}>
+                  <Avatar
+                    src={displayAvatar}
+                    name={user?.full_name}
+                    size="xl"
+                    className="border-4 border-white shadow-lg"
+                  />
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleAvatarClick();
+                        }}
+                        className="absolute -bottom-2 -right-2 p-2.5 bg-emerald-500 text-white rounded-full shadow-lg hover:bg-emerald-600 transition-all group-hover:scale-105"
+                      >
+                        <Camera className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRef}
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                   <p className="text-xs text-gray-500 mt-4 text-center">Nhấn vào biểu tượng máy ảnh để thay đổi ảnh đại diện</p>
+                   {selectedFile && (
+                     <p className="text-xs text-emerald-600 font-medium mt-2">{selectedFile.name}</p>
+                   )}
+                 </div>
               </div>
 
               <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-3xl p-6 border border-emerald-100">

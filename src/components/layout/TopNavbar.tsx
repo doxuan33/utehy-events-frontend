@@ -219,7 +219,14 @@ export const TopNavbar = () => {
                 <span>{item.label}</span>
               </NavLink>
             ))}
-            
+            <Link
+                          to="/profile"
+                          onClick={() => setShowProfileMenu(false)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <UserIcon className="h-4 w-4" />
+                          Trang cá nhân
+                        </Link>
             <button
               onClick={() => {
                 handleLogout();

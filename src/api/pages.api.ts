@@ -35,11 +35,22 @@ export interface PageMember {
   };
 }
 
-export interface PageWithMembers {
-  id: string;
-  name: string;
-  slug: string;
+export interface PageWithMembers extends Omit<Page, 'avatar_url' | 'cover_url' | 'description'> {
   members: PageMember[];
+  description?: string | null;
+  avatar_url?: string | null;
+  cover_url?: string | null;
+  is_following?: boolean;
+  _count?: {
+    followers: number;
+    events: number;
+  };
+  slogan?: string;
+  category?: string;
+  email?: string;
+  phone?: string;
+  facebook_url?: string;
+  tiktok_url?: string;
 }
 
 export interface PageJoinRequest {
@@ -63,9 +74,21 @@ export interface PageJoinRequest {
   };
 }
 
+export interface Page {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  avatar_url: string | null;
+  cover_url: string | null;
+  is_following?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export const pagesApi = {
   getAll: (params?: { search?: string; page?: number; limit?: number }) =>
-    apiClient.get('/pages', { params }),
+    apiClient.get<{ data: Page[] }>('/pages', { params }),
 
   getFollowing: () =>
     apiClient.get('/pages/following'),
@@ -79,20 +102,26 @@ export const pagesApi = {
   update: (id: string, data: UpdatePageParams) =>
     apiClient.patch(`/pages/${id}`, data),
 
-  uploadAvatar: (id: string, file: File) => {
+  // Upload ảnh lên Cloudinary thông qua endpoint /upload, trả về URL
+  uploadImage: (file: File) => {
     const formData = new FormData();
-    formData.append('avatar', file);
-    return apiClient.patch(`/pages/${id}`, formData, {
+    formData.append('image', file);
+    return apiClient.post<{ data: { url: string } }>('/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
 
-  uploadCover: (id: string, file: File) => {
-    const formData = new FormData();
-    formData.append('cover', file);
-    return apiClient.patch(`/pages/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+  // deprecated - sẽ bị xóa, giữ để tương thích cũ (nên dùng uploadImage rồi update)
+  uploadAvatar: async (id: string, file: File) => {
+    const res = await pagesApi.uploadImage(file);
+    const avatarUrl = res.data.data.url;
+    return pagesApi.update(id, { avatar_url: avatarUrl });
+  },
+
+  uploadCover: async (id: string, file: File) => {
+    const res = await pagesApi.uploadImage(file);
+    const coverUrl = res.data.data.url;
+    return pagesApi.update(id, { cover_url: coverUrl });
   },
 
   follow: (id: string) =>

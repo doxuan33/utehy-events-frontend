@@ -20,7 +20,7 @@ import { Avatar } from '@/components/common/Avatar';
 export const PageAdminLayout = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -52,8 +52,29 @@ export const PageAdminLayout = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      {/* ===== FIXED SIDEBAR (LEFT) - Contains ONLY Logo + Navigation ===== */}
-      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-200 flex flex-col z-30">
+      {/* ===== MOBILE OVERLAY ===== */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ===== SIDEBAR (LEFT) - Responsive ===== */}
+      {/* Desktop: fixed visible | Mobile: fixed hidden by default, slides in */}
+      <aside
+        className={`
+          fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-200 flex flex-col z-50
+          transform transition-transform duration-300 ease-in-out
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:translate-x-0 md:z-30
+        `}
+      >
         {/* Logo Section - Sidebar Header */}
         <div className="p-6 border-b border-gray-100">
           <Link to="/page-admin" className="flex items-center gap-3">
@@ -76,6 +97,7 @@ export const PageAdminLayout = () => {
                 key={item.path}
                 to={item.path}
                 end={item.exact}
+                onClick={() => setIsSidebarOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
                     isActive
@@ -104,19 +126,19 @@ export const PageAdminLayout = () => {
         </div>
       </aside>
 
-      {/* ===== MAIN CONTENT AREA (RIGHT) - with left margin for sidebar ===== */}
-      <div className="lg:ml-64 min-h-screen flex flex-col">
-        {/* ===== TOPBAR - No logo, only search + actions ===== */}
+      {/* ===== MAIN CONTENT AREA (RIGHT) ===== */}
+      <div className="md:ml-64 min-h-screen flex flex-col">
+        {/* ===== TOPBAR ===== */}
         <header className="sticky top-0 z-40 h-16 bg-white border-b border-gray-200">
           <div className="h-full px-4 md:px-8 flex items-center justify-between">
-            {/* Left - Mobile Menu + Search */}
+            {/* Left - Mobile Hamburger + Search */}
             <div className="flex items-center gap-3 flex-1">
-              {/* Mobile Hamburger */}
+              {/* Mobile Hamburger - Only visible on mobile */}
               <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                onClick={() => setIsSidebarOpen(true)}
+                className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                <Menu className="h-5 w-5" />
               </button>
 
               {/* Desktop Search - Hidden on mobile */}
@@ -138,7 +160,7 @@ export const PageAdminLayout = () => {
                 <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
               </button>
 
-              {/* Profile Dropdown - FIXED Z-INDEX */}
+              {/* Profile Dropdown */}
               <div ref={profileMenuRef} className="relative">
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -180,7 +202,7 @@ export const PageAdminLayout = () => {
         </header>
 
         {/* ===== PAGE CONTENT ===== */}
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -190,83 +212,6 @@ export const PageAdminLayout = () => {
           </motion.div>
         </main>
       </div>
-
-      {/* ===== MOBILE MENU OVERLAY ===== */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
-
-            {/* Drawer */}
-            <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-200 z-50 lg:hidden flex flex-col"
-            >
-              {/* Mobile Menu Header */}
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                <Link to="/page-admin" className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
-                    <QrCode className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-lg font-black text-gray-900">UTEHY Admin</h1>
-                    <p className="text-[10px] font-bold text-emerald-600 uppercase">Quản lý CLB</p>
-                  </div>
-                </Link>
-                <button
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Mobile Nav Items */}
-              <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-                {menuItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      end={item.exact}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
-                          isActive
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200 border-l-4'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-100'
-                        }`
-                      }
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span className="font-medium">{item.label}</span>
-                    </NavLink>
-                  );
-                })}
-              </nav>
-
-              {/* Mobile Footer */}
-              <div className="p-4 border-t border-gray-100">
-                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">CLB đang quản lý</p>
-                  <p className="text-sm font-bold text-gray-900 truncate">CLB Sinh viên UTEHY</p>
-                </div>
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

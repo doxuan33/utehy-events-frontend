@@ -5,39 +5,47 @@ import { pagesApi } from '@/api/pages.api';
 import { checkinApi } from '@/api/checkin.api';
 import { uploadApi } from '@/api/upload.api';
 import { Button } from '@/components/common/Button';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus,
-  Search,
-  Calendar,
-  MapPin,
-  Users,
-  Award,
-  Loader2,
-  AlertCircle,
-  X,
-  Send,
-  Clock,
-  Map as MapIcon,
-  CheckCircle2,
-  Timer,
-  FileText,
-  ChevronRight,
-  Download,
-  Upload,
-  Edit2,
-  Trash2,
-  Maximize,
-  Navigation,
-  Target,
-  Crosshair,
-  LocateFixed,
-  Image
+  Plus, Search, Calendar, MapPin, Users, Award, Loader2,
+  AlertCircle, X, Send, Clock, Map as MapIcon, CheckCircle2,
+  Timer, FileText, ChevronRight, Download, Upload, Edit2,
+  Trash2, Maximize, Navigation, Target, Crosshair, LocateFixed,
+  Image, QrCode, UserCheck, AlertTriangle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
+
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  category_id: number;
+  location: string;
+  latitude?: string;
+  longitude?: string;
+  start_time: string;
+  end_time: string;
+  registration_deadline?: string;
+  max_slots?: number;
+  training_points?: number;
+  banner_url?: string;
+  status: string;
+  created_at?: string;
+  _count?: { registrations: number };
+}
+
+interface Category {
+  id: number;
+  name: string;
+}
+
+interface Page {
+  id: string;
+  name: string;
+}
 
 // Map imports
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
@@ -52,7 +60,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-// Custom red icon for marker
 const redIcon = new L.Icon({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-red.png',
   iconSize: [25, 41],
@@ -64,107 +71,110 @@ const redIcon = new L.Icon({
 
 // MapClick handler component
 const MapClickHandler = ({ onClick }: { onClick: (e: any) => void }) => {
-  useMapEvents({
-    click: onClick
-  });
+  useMapEvents({ click: onClick });
   return null;
 };
 
-// ── MapModal Component
-const MapModal = ({
-  isOpen,
-  onClose,
-  latitude,
-  longitude,
-  onLocationSelect
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  latitude: string;
-  longitude: string;
-  onLocationSelect: (lat: string, lng: string) => void;
-}) => {
+// ── Custom Confirm Dialog Component ──
+const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, type = 'danger', isLoading }: any) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 border border-gray-100 overflow-hidden"
+      >
+        <div className={`absolute top-0 left-0 w-full h-2 ${type === 'danger' ? 'bg-red-500' : 'bg-amber-500'}`} />
+        <div className="flex items-start gap-4">
+          <div className={`p-3 rounded-2xl ${type === 'danger' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-500'}`}>
+            <AlertTriangle size={24} />
+          </div>
+          <div className="flex-1 pt-1">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
+            <p className="text-gray-600 text-sm leading-relaxed">{message}</p>
+          </div>
+        </div>
+        <div className="mt-8 flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            disabled={isLoading}
+            className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
+          >
+            Hủy bỏ
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className={`px-5 py-2.5 rounded-xl text-sm font-medium text-white flex items-center gap-2 transition-colors disabled:opacity-50
+              ${type === 'danger' ? 'bg-red-600 hover:bg-red-700 shadow-red-200' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'} shadow-lg`}
+          >
+            {isLoading && <Loader2 size={16} className="animate-spin" />}
+            Xác nhận
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// ── MapModal Component ──
+const MapModal = ({ isOpen, onClose, latitude, longitude, onLocationSelect }: any) => {
   const hasCoords = latitude && longitude;
   const initialLat = hasCoords ? parseFloat(latitude) : 20.971137;
   const initialLng = hasCoords ? parseFloat(longitude) : 105.788646;
-  const [markerPosition, setMarkerPosition] = useState<[number, number]>([initialLat, initialLng]);
+  const [markerPosition, setMarkerPosition] = useState([initialLat, initialLng]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Initialize marker position when coordinates change
   useEffect(() => {
-    if (latitude && longitude) {
-      setMarkerPosition([parseFloat(latitude), parseFloat(longitude)]);
-    }
+    if (latitude && longitude) setMarkerPosition([parseFloat(latitude), parseFloat(longitude)]);
   }, [latitude, longitude]);
 
-  // Handle map click to set marker position
   const handleMapClick = useCallback((e: any) => {
     const { lat, lng } = e.latlng;
     setMarkerPosition([lat, lng] as [number, number]);
     onLocationSelect(lat.toString(), lng.toString());
   }, [onLocationSelect]);
 
-  // Handle marker drag end
-  const handleMarkerDragEnd = useCallback((e: any) => {
-    const { lat, lng } = e.target.getLatLng();
-    setMarkerPosition([lat, lng] as [number, number]);
-    onLocationSelect(lat.toString(), lng.toString());
-  }, [onLocationSelect]);
-
-  // Handle search (using Nominatim OpenStreetMap search API)
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          searchQuery
-        )}&countrycodes=vn&limit=5&addressdetails=1`,
-        {
-          headers: {
-            'User-Agent': 'UTEHY-Event-Management/1.0 (https://utehy.edu.vn)'
-          }
-        }
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&countrycodes=vn&limit=5&addressdetails=1`
       );
       const data = await response.json();
       if (data && data[0]) {
-        const { lat, lon } = data[0];
-        const newLat = parseFloat(lat);
-        const newLng = parseFloat(lon);
+        const newLat = parseFloat(data[0].lat);
+        const newLng = parseFloat(data[0].lon);
         setMarkerPosition([newLat, newLng] as [number, number]);
         onLocationSelect(newLat.toString(), newLng.toString());
       } else {
         toast.error('Không tìm thấy địa chỉ');
       }
     } catch (error) {
-      console.error('Search error:', error);
       toast.error('Không tìm thấy địa chỉ');
     }
   };
 
   const handleGetLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      toast.error('Trình duyệt không hỗ trợ định vị');
-      return;
-    }
-    toast.loading('Đang lấy vị trí của bạn...', { id: 'geo-location' });
+    if (!navigator.geolocation) return toast.error('Trình duyệt không hỗ trợ định vị');
+    toast.loading('Đang lấy vị trí của bạn...', { id: 'geo' });
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setMarkerPosition([lat, lng] as [number, number]);
-        onLocationSelect(lat.toString(), lng.toString());
-        toast.dismiss('geo-location');
+        setMarkerPosition([pos.coords.latitude, pos.coords.longitude] as [number, number]);
+        onLocationSelect(pos.coords.latitude.toString(), pos.coords.longitude.toString());
+        toast.dismiss('geo');
       },
       (err) => {
-        console.error('Geo error:', err);
-        if (err.code === 1) {
-          toast.error('Truy cập định vị bị từ chối. Vui lòng chọn vị trí thủ công trên bản đồ.');
-        } else {
-          toast.error('Không thể lấy vị trí. Vui lòng chọn thủ công trên bản đồ.');
-        }
-        toast.dismiss('geo-location');
+        toast.error('Không thể lấy vị trí. Vui lòng chọn thủ công.');
+        toast.dismiss('geo');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -173,190 +183,95 @@ const MapModal = ({
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden"
-        >
-          <div className="flex items-center justify-between p-4 border-b border-gray-100">
-            <h3 className="text-lg font-bold text-gray-900">Chọn vị trí trên bản đồ</h3>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-              <X className="h-5 w-5 text-gray-500" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[85vh]">
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
+          <h3 className="text-lg font-bold text-emerald-800 flex items-center gap-2">
+            <MapIcon className="text-emerald-500" /> Chọn vị trí trên bản đồ
+          </h3>
+          <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm"><X size={20} /></button>
+        </div>
+
+        <div className="p-4 flex flex-col md:flex-row gap-3 bg-gray-50 border-b border-gray-100">
+          <form onSubmit={handleSearch} className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm địa chỉ (ví dụ: UTEHY)..."
+              className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm transition-all"
+            />
+            <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-emerald-100 text-emerald-600 rounded-xl hover:bg-emerald-200">
+              <Navigation size={16} />
             </button>
+          </form>
+          <button type="button" onClick={handleGetLocation} className="flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-200 whitespace-nowrap text-sm font-medium">
+            <LocateFixed size={18} /> Vị trí của tôi
+          </button>
+        </div>
+
+        <div className="relative flex-1 bg-gray-100">
+          <MapContainer center={markerPosition as L.LatLngExpression} zoom={16} style={{ height: '100%', width: '100%' }}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <Marker position={markerPosition as L.LatLngExpression} icon={redIcon} />
+            <MapClickHandler onClick={handleMapClick} />
+          </MapContainer>
+        </div>
+
+        <div className="px-6 py-4 bg-white border-t border-gray-100 flex flex-wrap justify-between items-center gap-4">
+          <div className="text-sm font-mono bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-100">
+            Lat: {markerPosition[0].toFixed(6)} | Lng: {markerPosition[1].toFixed(6)}
           </div>
-
-          <div className="p-4 space-y-3 max-h-[70vh]">
-            {/* Search Box */}
-            <form onSubmit={handleSearch} className="mb-2">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm kiếm địa chỉ (ví dụ: UTEHY)..."
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs hover:bg-emerald-600 transition-colors"
-                >
-                  <Search className="h-4 w-4" />
-                </button>
-              </div>
-            </form>
-            <p className="text-xs text-orange-500 mt-1">
-              Mẹo: Nếu không tìm thấy tên trường, hãy gõ tên đường/xã/huyện (VD: Khoái Châu, Hưng Yên) hoặc tự kéo thả ghim đỏ.
-            </p>
-
-            <button
-              type="button"
-              onClick={handleGetLocation}
-              className="flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-medium hover:bg-emerald-100 transition-colors"
-            >
-              <LocateFixed className="h-3.5 w-3.5 mr-1.5" />
-              Vị trí của tôi
-            </button>
-
-            {/* Map Container */}
-            <div
-              className="relative w-full h-96 rounded-2xl overflow-hidden border-2 border-emerald-200 cursor-pointer"
-            >
-              <MapContainer
-                center={markerPosition}
-                zoom={13}
-                scrollWheelZoom={true}
-                className="w-full h-full"
-              >
-                <MapClickHandler onClick={handleMapClick} />
-                {/* OpenStreetMap tiles */}
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                {/* Draggable marker */}
-                <Marker
-                  position={markerPosition}
-                  icon={redIcon}
-                  draggable
-                  eventHandlers={{
-                    dragend: handleMarkerDragEnd
-                  }}
-                />
-              </MapContainer>
-
-              {/* Overlay instructions */}
-              <div className="absolute inset-0 bg-black/5 flex items-center justify-center pointer-events-none">
-                <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl text-xs font-bold text-gray-700 shadow-lg">
-                  <MapPin className="h-4 w-4 inline mr-1" />
-                  Kéo thả ghim hoặc click trên bản đồ để chọn vị trí
-                </div>
-              </div>
-            </div>
-
-            {/* Current coordinates display */}
-            <div className="text-xs text-gray-500 flex items-center">
-              <Crosshair className="h-3 w-3 mr-1" />
-              <span>
-                Vĩ độ: {markerPosition[0].toFixed(6)}&nbsp;&nbsp;|&nbsp;&nbsp;
-                Kinh độ: {markerPosition[1].toFixed(6)}
-              </span>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+          <button onClick={onClose} className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-200 transition-all font-medium flex items-center gap-2">
+            <CheckCircle2 size={18} /> Xác nhận vị trí
+          </button>
+        </div>
+      </motion.div>
+    </div>
   );
 };
 
+// ── Main Event Management Component ──
 export const EventManagement = () => {
   const { token } = useAuthStore();
-  const [events, setEvents] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [page, setPage] = useState<any>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [page, setPage] = useState<Page | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState<string | boolean>(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
-   // Modal states
-   const [isModalOpen, setIsModalOpen] = useState(false);
-   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  // Modals & Dialogs
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, type: 'danger' as any });
 
-  // Form state - imageFile holds the actual File object
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category_id: '',
-    location: '',
-    latitude: '',
-    longitude: '',
-    start_time: '',
-    end_time: '',
-    registration_deadline: '',
-    max_participants: '',
-    training_points: '',
-    banner_url: '', // For display only (preview or existing URL)
+    title: '', description: '', category_id: '', location: '', latitude: '', longitude: '',
+    start_time: '', end_time: '', registration_deadline: '', max_participants: '', training_points: '', banner_url: '',
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>(''); // Object URL for local preview
+  const [imagePreview, setImagePreview] = useState('');
 
-  // Cleanup preview URL to prevent memory leaks on unmount
-  useEffect(() => {
-    return () => {
-      if (imagePreview) {
-        URL.revokeObjectURL(imagePreview);
-      }
-    };
-  }, [imagePreview]);
+  useEffect(() => { return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); }; }, [imagePreview]);
+  useEffect(() => { if (!isModalOpen) { setImagePreview(prev => { if (prev) URL.revokeObjectURL(prev); return ''; }); setImageFile(null); } }, [isModalOpen]);
 
-   // Cleanup when modal closes
-   useEffect(() => {
-     if (!isModalOpen) {
-       setImagePreview(prev => {
-         if (prev) URL.revokeObjectURL(prev);
-         return '';
-       });
-       setImageFile(null);
-     }
-   }, [isModalOpen]);
-
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
+  useEffect(() => { fetchInitialData(); }, []);
 
   const fetchInitialData = async () => {
     try {
       setIsLoading(true);
-      // 1. Get managed page
       const pagesRes = await pagesApi.getAll();
       const managedPage = pagesRes.data.data?.[0];
-      
-if (managedPage) {
-         setPage(managedPage);
-         // 2. Get events for this page
-         const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 50 });
-         const rawEvents = eventsRes.data.data.data || [];
-         // Sort by created_at (newest first), fallback to start_time or id
-         const sortedEvents = rawEvents.sort((a: any, b: any) => {
-           const dateA = new Date(a.created_at || a.start_time || a.id).getTime();
-           const dateB = new Date(b.created_at || b.start_time || b.id).getTime();
-           return dateB - dateA;
-         });
-         setEvents(sortedEvents);
-       }
-
-      // 3. Get categories
+      if (managedPage) {
+        setPage(managedPage);
+        const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 50 });
+        const rawEvents = eventsRes.data.data.data || [];
+        const sortedEvents = rawEvents.sort((a: any, b: any) => new Date(b.created_at || b.start_time || b.id).getTime() - new Date(a.created_at || a.start_time || a.id).getTime());
+        setEvents(sortedEvents);
+      }
       const catRes = await eventsApi.getCategories();
       setCategories(catRes.data.data);
     } catch (err) {
@@ -373,773 +288,464 @@ if (managedPage) {
       setEvents(prev => prev.map(e => e.id === eventId ? { ...e, status: 'ONGOING' } : e));
       navigate(`/page-admin/events/${eventId}/qr-display`);
     } catch (err: any) {
-      console.error('Failed to start checkin', err);
       toast.error(err.response?.data?.message || 'Không thể bắt đầu điểm danh.');
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  const handleEndCheckin = async (eventId: string) => {
-    if (!confirm('Bạn có chắc chắn muốn kết thúc điểm danh? Thao tác này sẽ đóng đăng ký và cập nhật vắng mặt cho những người chưa điểm danh.')) return;
+  const confirmEndCheckin = (eventId: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Kết thúc điểm danh',
+      message: 'Bạn có chắc chắn muốn kết thúc điểm danh? Thao tác này sẽ đóng đăng ký và cập nhật vắng mặt cho những người chưa điểm danh.',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          setIsActionLoading(eventId);
+          await checkinApi.endCheckin(eventId);
+          setEvents(prev => prev.map(e => e.id === eventId ? { ...e, status: 'CLOSED' } : e));
+          toast.success('Đã kết thúc điểm danh và đóng sự kiện.');
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Không thể kết thúc điểm danh.');
+        } finally {
+          setIsActionLoading(false);
+        }
+      }
+    });
+  };
 
-    try {
-      setIsActionLoading(eventId);
-      await checkinApi.endCheckin(eventId);
-      setEvents(prev => prev.map(e => e.id === eventId ? { ...e, status: 'CLOSED' } : e));
-      toast.success('Đã kết thúc điểm danh và đóng sự kiện.');
-    } catch (err: any) {
-      console.error('Failed to end checkin', err);
-      toast.error(err.response?.data?.message || 'Không thể kết thúc điểm danh.');
-    } finally {
-      setIsActionLoading(false);
-    }
+  const confirmDeleteEvent = (eventId: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Xóa sự kiện',
+      message: 'Bạn có chắc chắn muốn xóa sự kiện này? Toàn bộ dữ liệu liên quan sẽ bị xóa và không thể hoàn tác.',
+      type: 'danger',
+      onConfirm: async () => {
+        if (!page) return;
+        try {
+          setIsActionLoading(eventId);
+          await eventsApi.delete(eventId, page.id);
+          setEvents(prev => prev.filter(e => e.id !== eventId));
+          toast.success('Đã xóa sự kiện thành công.');
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Xóa sự kiện thất bại.');
+        } finally {
+          setIsActionLoading(false);
+        }
+      }
+    });
   };
 
   const handleOpenCreateModal = () => {
     setEditingEventId(null);
-    setFormData({
-      title: '',
-      description: '',
-      category_id: categories[0]?.id || '',
-      location: '',
-      latitude: '',
-      longitude: '',
-      start_time: '',
-      end_time: '',
-      registration_deadline: '',
-      max_participants: '',
-      training_points: '',
-      banner_url: '',
-    });
-    // Cleanup previous image file/preview if exists
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview);
-    }
-    setImageFile(null);
-    setImagePreview('');
-    setIsModalOpen(true);
+    setFormData({ title: '', description: '', category_id: String(categories[0]?.id || ''), location: '', latitude: '', longitude: '', start_time: '', end_time: '', registration_deadline: '', max_participants: '', training_points: '', banner_url: '' });
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(null); setImagePreview(''); setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (event: any) => {
     setEditingEventId(event.id);
     setFormData({
-      title: event.title || '',
-      description: event.description || '',
-      category_id: event.category_id?.toString() || '',
-      location: event.location || '',
-      latitude: event.latitude?.toString() || '',
-      longitude: event.longitude?.toString() || '',
-      start_time: event.start_time ? format(new Date(event.start_time), "yyyy-MM-dd'T'HH:mm") : '',
-      end_time: event.end_time ? format(new Date(event.end_time), "yyyy-MM-dd'T'HH:mm") : '',
-      registration_deadline: event.registration_deadline ? format(new Date(event.registration_deadline), "yyyy-MM-dd'T'HH:mm") : '',
-      max_participants: (event.max_slots || '').toString(),
-      training_points: (event.training_points || 0).toString(),
-      banner_url: event.banner_url || event.banner_url || '',
+      title: event.title || '', description: event.description || '', category_id: event.category_id?.toString() || '', location: event.location || '', latitude: event.latitude?.toString() || '', longitude: event.longitude?.toString() || '',
+      start_time: event.start_time ? format(new Date(event.start_time), "yyyy-MM-dd'T'HH:mm") : '', end_time: event.end_time ? format(new Date(event.end_time), "yyyy-MM-dd'T'HH:mm") : '', registration_deadline: event.registration_deadline ? format(new Date(event.registration_deadline), "yyyy-MM-dd'T'HH:mm") : '',
+      max_participants: (event.max_slots || '').toString(), training_points: (event.training_points || 0).toString(), banner_url: event.banner_url || ''
     });
-    // In edit mode, we don't have the original file; we just show existing image URL
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview);
-    }
-    setImageFile(null);
-    setImagePreview('');
-    setIsModalOpen(true);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(null); setImagePreview(''); setIsModalOpen(true);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Vui lòng chọn file ảnh hợp lệ');
-      return;
-    }
-
-    // Clean up previous preview
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview);
-    }
-
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-    // We don't set in formData because we'll upload separately
-  };
-
-   const handleRemoveImage = () => {
-     if (imagePreview) {
-       URL.revokeObjectURL(imagePreview);
-     }
-     setImageFile(null);
-     setImagePreview('');
-   };
-
-   // Map modal handler
-   const handleMapLocationSelect = (lat: string, lng: string) => {
-     setFormData({ ...formData, latitude: lat, longitude: lng });
-     setIsMapModalOpen(false);
-   };
-
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa sự kiện này? Thao tác này không thể hoàn tác.')) return;
-
-    try {
-      setIsActionLoading(eventId);
-      await eventsApi.delete(eventId, page.id);
-      setEvents(prev => prev.filter(e => e.id !== eventId));
-      toast.success('Đã xóa sự kiện thành công.');
-    } catch (err: any) {
-      console.error('Failed to delete event', err);
-      toast.error(err.response?.data?.message || 'Xóa sự kiện thất bại.');
-    } finally {
-      setIsActionLoading(false);
-    }
+    if (!file.type.startsWith('image/')) return toast.error('Vui lòng chọn file ảnh hợp lệ');
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(file); setImagePreview(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!page) return;
-    if (!token) {
-      toast.error('Vui lòng đăng nhập lại');
-      setIsActionLoading(false);
-      return;
-    }
-
+    if (!page || !token) return toast.error('Vui lòng đăng nhập lại');
     try {
       setIsActionLoading(true);
+      if (!formData.category_id) return toast.error('Vui lòng chọn danh mục sự kiện');
+      if (!formData.title.trim() || !formData.description.trim() || !formData.start_time) return toast.error('Vui lòng điền đủ thông tin bắt buộc');
 
-      // Validate required fields
-      if (!formData.category_id) {
-        toast.error('Vui lòng chọn danh mục sự kiện');
-        setIsActionLoading(false);
-        return;
-      }
-if (!formData.title.trim()) {
-         toast.error('Vui lòng nhập tên sự kiện');
-         setIsActionLoading(false);
-         return;
-       }
-       if (!formData.description.trim()) {
-         toast.error('Vui lòng nhập mô tả sự kiện');
-         setIsActionLoading(false);
-         return;
-       }
-       if (!formData.start_time) {
-         toast.error('Vui lòng chọn thời gian bắt đầu');
-         setIsActionLoading(false);
-         return;
-       }
-
-// Upload image if selected
       let bannerUrl = formData.banner_url || '';
       if (imageFile) {
         toast.loading('Đang tải ảnh lên...', { id: 'upload-image' });
         try {
           const uploadRes = await uploadApi.uploadImage(imageFile);
-
-          // Parse response to extract image URL
           const resData = uploadRes?.data?.data || uploadRes?.data || {};
-          bannerUrl = resData?.url
-                   || resData?.secure_url
-                   || resData?.banner_url
-                   || '';
-
-          // Guard clause - stop if URL extraction failed
-          if (imageFile && !bannerUrl) {
-            toast.error("Tải ảnh lên thất bại: Không nhận được URL từ server");
-            setIsActionLoading(false);
-            return;
-          }
-
+          bannerUrl = resData?.url || resData?.secure_url || resData?.banner_url || '';
+          if (!bannerUrl) throw new Error("Không nhận được URL từ server");
           toast.dismiss('upload-image');
         } catch (err: any) {
-          toast.error('Tải ảnh thất bại: ' + (err.response?.data?.message || err.message));
-          setIsActionLoading(false);
-          return;
+          toast.error('Tải ảnh thất bại: ' + err.message);
+          return setIsActionLoading(false);
         }
       }
 
-      // ── DATA SANITIZATION & TYPE SAFETY ──────────────────────
-      // Parse numbers safely (never send NaN)
-      const categoryId = formData.category_id ? parseInt(formData.category_id.toString(), 10) : 0;
-      const maxSlots = formData.max_participants
-        ? parseInt(formData.max_participants.toString(), 10)
-        : 0;
-      const trainingPoints = formData.training_points
-        ? parseInt(formData.training_points.toString(), 10)
-        : 0;
+      const categoryId = parseInt(formData.category_id.toString(), 10);
+      const maxSlots = formData.max_participants ? parseInt(formData.max_participants.toString(), 10) : 0;
+      const trainingPoints = formData.training_points ? parseInt(formData.training_points.toString(), 10) : 0;
       const latitude = formData.latitude ? parseFloat(formData.latitude.toString()) : null;
       const longitude = formData.longitude ? parseFloat(formData.longitude.toString()) : null;
 
-      // Validate parsed numbers
-      if (isNaN(categoryId) || categoryId <= 0) {
-        toast.error('Danh mục không hợp lệ');
-        setIsActionLoading(false);
-        return;
-      }
-      if (isNaN(maxSlots) || maxSlots < 1) {
-        toast.error('Số lượng tham gia phải lớn hơn 0');
-        setIsActionLoading(false);
-        return;
-      }
-      if (isNaN(trainingPoints) || trainingPoints < 0) {
-        toast.error('Điểm rèn luyện không hợp lệ');
-        setIsActionLoading(false);
-        return;
-      }
-      // GPS validation - only if values are provided (now optional)
-      if (latitude !== null && (isNaN(latitude) || latitude < -90 || latitude > 90)) {
-        toast.error('Vĩ độ không hợp lệ');
-        setIsActionLoading(false);
-        return;
-      }
-      if (longitude !== null && (isNaN(longitude) || longitude < -180 || longitude > 180)) {
-        toast.error('Kinh độ không hợp lệ');
-        setIsActionLoading(false);
-        return;
-      }
-
-      // Normalize datetime inputs to ISO 8601
       const startTime = new Date(formData.start_time);
-      if (isNaN(startTime.getTime())) {
-        toast.error('Thời gian bắt đầu không hợp lệ');
-        setIsActionLoading(false);
-        return;
-      }
+      let endTime = formData.end_time ? new Date(formData.end_time) : new Date(startTime.getTime() + 3 * 60 * 60 * 1000);
+      const registrationDeadline = formData.registration_deadline ? new Date(formData.registration_deadline) : new Date(startTime.getTime() - 24 * 60 * 60 * 1000);
 
-// Auto-generate end_time if missing (fallback: +3h from start)
-       let endTime: Date;
-       if (formData.end_time) {
-         endTime = new Date(formData.end_time);
-         if (isNaN(endTime.getTime())) {
-           toast.error('Thời gian kết thúc không hợp lệ');
-           setIsActionLoading(false);
-           return;
-         }
-       } else {
-         endTime = new Date(startTime.getTime() + 3 * 60 * 60 * 1000); // +3 hours
-       }
-
-       // Validate end_time > start_time
-       if (endTime <= startTime) {
-         toast.error('Thời gian kết thúc phải sau thời gian bắt đầu');
-         setIsActionLoading(false);
-         return;
-       }
-
-       // Normalize registration_deadline
-       let registrationDeadline: Date;
-       if (formData.registration_deadline) {
-         registrationDeadline = new Date(formData.registration_deadline);
-         if (isNaN(registrationDeadline.getTime())) {
-           toast.error('Hạn đăng ký không hợp lệ');
-           setIsActionLoading(false);
-           return;
-         }
-       } else {
-         registrationDeadline = new Date(startTime.getTime() - 24 * 60 * 60 * 1000); // 24h before start
-       }
-
-      // Validate registration_deadline <= start_time
-      if (registrationDeadline > startTime) {
-        toast.error('Hạn đăng ký phải trước hoặc bằng thời gian bắt đầu');
-        setIsActionLoading(false);
-        return;
-      }
-
-// Build payload (all numbers are proper numbers, not strings)
       const payload: any = {
-        page_id: page.id,
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        category_id: categoryId,
-        location: formData.location.trim(),
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
-        registration_deadline: registrationDeadline.toISOString(),
-        max_slots: maxSlots,
-        training_points: trainingPoints,
-        checkin_radius_m: 200,
-        requires_approval: false,
-        banner_url: bannerUrl || undefined,
+        page_id: page.id, title: formData.title.trim(), description: formData.description.trim(),
+        category_id: categoryId, location: formData.location.trim(), start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(), registration_deadline: registrationDeadline.toISOString(),
+        max_slots: maxSlots, training_points: trainingPoints, checkin_radius_m: 200, requires_approval: false, banner_url: bannerUrl || undefined,
       };
+      if (latitude !== null && !isNaN(latitude)) payload.latitude = latitude;
+      if (longitude !== null && !isNaN(longitude)) payload.longitude = longitude;
 
-// Only include GPS if provided (optional in backend)
-        if (latitude !== null && !isNaN(latitude)) payload.latitude = latitude;
-        if (longitude !== null && !isNaN(longitude)) payload.longitude = longitude;
-
-        if (editingEventId) {
-         const res = await eventsApi.update(editingEventId, payload);
-         setEvents(prev => prev.map(e => e.id === editingEventId ? res.data.data : e));
-         toast.success('Cập nhật sự kiện thành công!');
-       } else {
-         const res = await eventsApi.create(payload);
-         setEvents([res.data.data, ...events]);
-         toast.success('Gửi yêu cầu phê duyệt sự kiện thành công!');
-       }
+      if (editingEventId) {
+        const res = await eventsApi.update(editingEventId, payload);
+        setEvents(prev => prev.map(e => e.id === editingEventId ? res.data.data : e));
+        toast.success('Cập nhật sự kiện thành công!');
+      } else {
+        const res = await eventsApi.create(payload);
+        setEvents([res.data.data, ...events]);
+        toast.success('Tạo sự kiện thành công!');
+      }
       setIsModalOpen(false);
     } catch (err: any) {
-      console.error('Failed to save event:', err);
-      // Detailed error logging
-      const errorData = err.response?.data;
-      const errorMessage = errorData?.message || errorData?.errors || err.message || 'Lỗi không xác định từ Server';
-      console.error("Chi tiết lỗi Backend:", errorData);
-      toast.error(`Lỗi: ${JSON.stringify(errorMessage)}`);
+      toast.error(`Lỗi: ${err.response?.data?.message || err.message}`);
     } finally {
       setIsActionLoading(false);
     }
   };
 
   const getStatusBadge = (status: string) => {
-    const styles: any = {
-      PENDING: 'bg-yellow-50 text-yellow-700 border-yellow-100',
-      APPROVED: 'bg-green-50 text-green-700 border-green-100',
-      REJECTED: 'bg-red-50 text-red-700 border-red-100',
-      ONGOING: 'bg-blue-50 text-blue-700 border-blue-100',
-      CLOSED: 'bg-gray-50 text-gray-700 border-gray-100',
+    const config: any = {
+      PENDING: { color: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Chờ duyệt', icon: <Timer size={14} /> },
+      APPROVED: { color: 'bg-emerald-100 text-emerald-700 border-emerald-200 shadow-emerald-100 shadow-sm', label: 'Đã duyệt', icon: <CheckCircle2 size={14} /> },
+      REJECTED: { color: 'bg-red-100 text-red-700 border-red-200', label: 'Từ chối', icon: <X size={14} /> },
+      ONGOING: { color: 'bg-blue-100 text-blue-700 border-blue-200 animate-pulse', label: 'Đang diễn ra', icon: <Crosshair size={14} /> },
+      CLOSED: { color: 'bg-gray-100 text-gray-600 border-gray-200', label: 'Đã kết thúc', icon: <FileText size={14} /> },
     };
-    const labels: any = {
-      PENDING: 'Chờ duyệt',
-      APPROVED: 'Đã duyệt',
-      REJECTED: 'Từ chối',
-      ONGOING: 'Đang diễn ra',
-      CLOSED: 'Đã kết thúc',
-    };
+    const { color, label, icon } = config[status] || { color: 'bg-gray-100 text-gray-700', label: status, icon: null };
     return (
-      <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${styles[status] || styles.PENDING}`}>
-        {labels[status] || status}
+      <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${color}`}>
+        {icon} {label}
       </span>
     );
   };
 
-  const filteredEvents = events.filter(event => 
-    event.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredEvents = events.filter((event: any) => event.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
-  }
+  if (isLoading) return <div className="flex h-[80vh] items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-emerald-500" /></div>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Sự kiện</h1>
-          <p className="text-gray-500 text-sm">Tổ chức và theo dõi các hoạt động ngoại khóa của {page?.name}.</p>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 md:p-8">
+      {/* ── Header ── */}
+      <div className="max-w-7xl mx-auto mb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 tracking-tight">
+              Quản lý Sự kiện
+            </h1>
+            <p className="text-gray-500 mt-2 text-sm md:text-base flex items-center gap-2">
+              <Target size={18} className="text-emerald-500" /> Tổ chức và theo dõi các hoạt động của {page?.name}.
+            </p>
+          </div>
+          <button
+            onClick={handleOpenCreateModal}
+            className="group flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl shadow-xl shadow-emerald-200 hover:shadow-emerald-300 hover:-translate-y-1 transition-all duration-300 font-semibold"
+          >
+            <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
+            Tạo sự kiện mới
+          </button>
         </div>
-        <Button onClick={handleOpenCreateModal} className="flex items-center space-x-2 rounded-2xl px-6">
-          <Plus className="h-5 w-5" />
-          <span>Tạo sự kiện mới</span>
-        </Button>
-      </div>
 
-      {/* Search */}
-      <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+        {/* ── Search Bar ── */}
+        <div className="mt-8 relative max-w-2xl">
+          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
           <input
             type="text"
-            placeholder="Tìm kiếm sự kiện..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            className="w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-md border border-emerald-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white shadow-sm transition-all"
+            placeholder="Tìm kiếm theo tên sự kiện..."
           />
         </div>
       </div>
 
-      {/* Events List */}
-      <div className="grid grid-cols-1 gap-4">
-        {filteredEvents.length > 0 ? (
-          filteredEvents.map((event) => (
-            <motion.div
-              layout
-              key={event.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 hover:border-blue-100 transition-all group"
-            >
-               <div className="flex flex-col md:flex-row gap-4">
-<div className="w-20 h-12 flex-shrink-0">
-                    {event.banner_url || event.banner_url ? (
-                      <img 
-                        src={event.banner_url || event.banner_url} 
-                        alt={event.title} 
-                        className="w-full h-full object-cover rounded-xl shadow-sm border border-gray-100"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded-xl shadow-sm border border-gray-100">
-                        <Image className="h-5 w-5 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-
-                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-2">
+      {/* ── Event Cards Grid ── */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <AnimatePresence>
+          {filteredEvents.length > 0 ? (
+            filteredEvents.map((event: any, index: number) => (
+              <motion.div
+                key={event.id}
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-white/90 backdrop-blur-xl rounded-3xl border border-emerald-100 shadow-lg shadow-emerald-100/50 hover:shadow-2xl hover:shadow-emerald-200/50 transition-all duration-300 flex flex-col overflow-hidden group"
+              >
+                {/* Image Banner */}
+                <div className="relative h-48 w-full bg-gray-100 overflow-hidden">
+                  {event.banner_url ? (
+                    <img src={event.banner_url} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50">
+                      <Image size={48} className="mb-2 opacity-50" />
+                      <span className="text-xs font-medium text-emerald-600/50">Không có ảnh</span>
+                    </div>
+                  )}
+                  <div className="absolute top-4 left-4 flex gap-2">
                     {getStatusBadge(event.status)}
-                    <div className="flex items-center text-blue-600 font-bold text-xs bg-blue-50 px-2 py-1 rounded-lg">
-                      <Award className="h-3 w-3 mr-1" />
-                      +{event.training_points} điểm
-                    </div>
+                    <span className="flex items-center gap-1 bg-white/90 backdrop-blur-sm text-emerald-600 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                      <Award size={14} /> +{event.training_points} điểm
+                    </span>
                   </div>
-                  
-                  <h3 className="text-lg font-bold text-gray-900 mb-2 truncate">{event.title}</h3>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
-                      <span>{format(new Date(event.start_time), 'HH:mm, dd/MM/yyyy', { locale: vi })}</span>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 flex-1 flex flex-col">
+                  <h3 className="text-xl font-bold text-gray-900 line-clamp-2 mb-4 group-hover:text-emerald-600 transition-colors">
+                    {event.title}
+                  </h3>
+
+                  <div className="space-y-3 flex-1">
+                    <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                      <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600"><Clock size={16} /></div>
+                      {format(new Date(event.start_time), 'HH:mm, dd/MM/yyyy', { locale: vi })}
                     </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <MapPin className="h-3.5 w-3.5 mr-2 text-gray-400" />
+                    <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                      <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600"><MapPin size={16} /></div>
                       <span className="truncate">{event.location}</span>
                     </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Users className="h-3.5 w-3.5 mr-2 text-gray-400" />
-                      <span>{event._count?.registrations || 0} / {event.max_slots || event.max_participants || 0} chỗ</span>
+                    <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                      <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600"><Users size={16} /></div>
+                      <span>Tham gia: <strong className="text-emerald-600">{event._count?.registrations || 0}</strong> / {event.max_slots || 0}</span>
                     </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Timer className="h-3.5 w-3.5 mr-2 text-gray-400" />
-                      <span>{event.category?.name}</span>
+                  </div>
+
+                  {/* Actions Footer */}
+                  <div className="mt-6 pt-4 border-t border-gray-100 grid grid-cols-4 gap-2">
+                    {/* Hành động chính tùy theo Status */}
+                    <div className="col-span-2 flex gap-2">
+                      {event.status === 'APPROVED' && (
+                        <button
+                          onClick={() => handleStartCheckin(event.id)}
+                          disabled={isActionLoading === event.id}
+                          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-md shadow-blue-200 text-sm font-medium disabled:opacity-50"
+                        >
+                          {isActionLoading === event.id ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={18} />}
+                          Mở QR
+                        </button>
+                      )}
+
+                      {event.status === 'ONGOING' && (
+                        <button
+                          onClick={() => confirmEndCheckin(event.id)}
+                          disabled={isActionLoading === event.id}
+                          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors shadow-md shadow-red-200 text-sm font-medium disabled:opacity-50"
+                        >
+                          {isActionLoading === event.id ? <Loader2 size={16} className="animate-spin" /> : <X size={18} />}
+                          Kết thúc
+                        </button>
+                      )}
+                      {/* Nếu chưa duyệt hoặc đã đóng thì show nút rỗng chiếm chỗ cho đẹp hoặc nút xem chi tiết */}
+                      {event.status !== 'APPROVED' && event.status !== 'ONGOING' && (
+                        <div className="flex-1 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 text-sm border border-gray-100">
+                          {event.status === 'CLOSED' ? 'Đã kết thúc' : 'Chưa diễn ra'}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Các nút điều hướng cơ bản */}
+                    <Link
+                      to={`/page-admin/events/${event.id}/registrations`}
+                      className="flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white transition-colors border border-teal-100 shadow-sm"
+                      title="Danh sách sinh viên"
+                    >
+                      <UserCheck size={18} />
+                    </Link>
+                    <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => handleOpenEditModal(event)} disabled={isActionLoading === event.id} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <Edit2 size={18} />
+                      </button>
+                      <button onClick={() => confirmDeleteEvent(event.id)} disabled={isActionLoading === event.id} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        {isActionLoading === event.id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                      </button>
                     </div>
                   </div>
                 </div>
-
-                <div className="flex md:flex-col justify-end gap-2">
-                  {event.status === 'APPROVED' && (
-                    <Button 
-                      onClick={() => handleStartCheckin(event.id)}
-                      disabled={isActionLoading === event.id}
-                      className="rounded-xl p-2 h-10 w-10 bg-blue-600 hover:bg-blue-700"
-                      title="Bắt đầu điểm danh"
-                    >
-                      {isActionLoading === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Timer className="h-4 w-4" />}
-                    </Button>
-                  )}
-
-                  {event.status === 'ONGOING' && (
-                    <>
-                      <Link 
-                        to={`/page-admin/events/${event.id}/qr-display`}
-                        className="flex items-center justify-center rounded-xl p-2 h-10 w-10 bg-purple-600 text-white hover:bg-purple-700 transition-all shadow-sm"
-                        title="Trình chiếu QR"
-                      >
-                        <Maximize className="h-4 w-4" />
-                      </Link>
-                      <Button 
-                        onClick={() => handleEndCheckin(event.id)}
-                        disabled={isActionLoading === event.id}
-                        className="rounded-xl p-2 h-10 w-10 bg-red-600 hover:bg-red-700"
-                        title="Kết thúc điểm danh"
-                      >
-                        {isActionLoading === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                      </Button>
-                    </>
-                  )}
-
-                  <Link 
-                    to={`/page-admin/events/${event.id}/registrations`}
-                    className="flex items-center justify-center rounded-xl p-2 h-10 w-10 border border-gray-200 text-gray-400 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all"
-                    title="Danh sách đăng ký"
-                  >
-                    <Users className="h-4 w-4" />
-                  </Link>
-                  <Button 
-                    variant="outline" 
-                    className="rounded-xl p-2 h-10 w-10"
-                    onClick={() => handleOpenEditModal(event)}
-                    disabled={isActionLoading === event.id}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="rounded-xl p-2 h-10 w-10 text-red-500 hover:bg-red-50 hover:border-red-200"
-                    onClick={() => handleDeleteEvent(event.id)}
-                    disabled={isActionLoading === event.id}
-                  >
-                    {isActionLoading === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          ))
-        ) : (
-          <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
-            <p className="text-gray-400">Không tìm thấy sự kiện nào.</p>
-          </div>
-        )}
+              </motion.div>
+            ))
+          ) : (
+            <div className="col-span-full py-20 flex flex-col items-center justify-center text-gray-400 bg-white/50 backdrop-blur-sm rounded-3xl border border-dashed border-emerald-200">
+              <Search size={48} className="mb-4 text-emerald-200" />
+              <p className="text-lg text-emerald-800 font-medium">Không tìm thấy sự kiện nào.</p>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Create Modal */}
+      {/* ── Create/Edit Modal ── */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-3xl bg-white rounded-[32px] shadow-2xl overflow-hidden my-8"
-            >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                  <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-                  {editingEventId ? 'Chỉnh sửa sự kiện' : 'Tạo yêu cầu sự kiện mới'}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden my-auto border border-emerald-100">
+              <div className="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
+                <h2 className="text-2xl font-bold text-emerald-800 flex items-center gap-3">
+                  <span className="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><Calendar size={24} /></span>
+                  {editingEventId ? 'Chỉnh sửa sự kiện' : 'Tạo sự kiện mới'}
                 </h2>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <X className="h-6 w-6 text-gray-400" />
+                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors bg-white shadow-sm border border-gray-100">
+                  <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-8 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-hide">
-                {/* Basic Info */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-black text-blue-600 uppercase tracking-wider flex items-center">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Thông tin cơ bản
-                  </h3>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-gray-700 ml-1">Tên sự kiện</label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                        placeholder="Ví dụ: Giải bóng đá sinh viên UTEHY 2024"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-gray-700 ml-1">Mô tả chi tiết</label>
-                      <textarea
-                        required
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        rows={4}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none"
-                        placeholder="Mô tả mục đích, nội dung và quyền lợi tham gia..."
-                      />
+              <div className="p-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                <form id="event-form" onSubmit={handleSubmit} className="space-y-8">
+                  {/* Basic Info */}
+                  <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                    <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><FileText size={16} /> Thông tin cơ bản</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tên sự kiện <span className="text-red-500">*</span></label>
+                        <input required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm" placeholder="Ví dụ: Lễ hội Xuân 2024" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mô tả chi tiết <span className="text-red-500">*</span></label>
+                        <textarea required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={4} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm resize-none" placeholder="Mô tả mục đích, nội dung..." />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Time & Category */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-black text-blue-600 uppercase tracking-wider flex items-center">
-                      <Clock className="h-4 w-4 mr-2" />
-                      Thời gian & Phân loại
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-700 ml-1">Danh mục</label>
-                        <select
-                          value={formData.category_id}
-                          onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {categories.map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                          ))}
+                  {/* Time & Category */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-4">
+                      <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><Clock size={16} /> Thời gian & Phân loại</h3>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Danh mục <span className="text-red-500">*</span></label>
+                        <select required value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm">
+                          <option value="">-- Chọn danh mục --</option>
+                          {categories.map((cat: any) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                         </select>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-gray-700 ml-1">Bắt đầu</label>
-                          <input
-                            type="datetime-local"
-                            required
-                            value={formData.start_time}
-                            onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                            className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Bắt đầu <span className="text-red-500">*</span></label>
+                          <input type="datetime-local" required value={formData.start_time} onChange={(e) => setFormData({ ...formData, start_time: e.target.value })} className="w-full px-3 py-3 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 shadow-sm" />
                         </div>
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-gray-700 ml-1">Kết thúc</label>
-                          <input
-                            type="datetime-local"
-                            required
-                            value={formData.end_time}
-                            onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                            className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kết thúc</label>
+                          <input type="datetime-local" value={formData.end_time} onChange={(e) => setFormData({ ...formData, end_time: e.target.value })} className="w-full px-3 py-3 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 shadow-sm" />
                         </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-700 ml-1">Hạn đăng ký</label>
-                        <input
-                          type="datetime-local"
-                          required
-                          value={formData.registration_deadline}
-                          onChange={(e) => setFormData({ ...formData, registration_deadline: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <p className="text-[10px] text-gray-400 ml-1 italic">* Thường trước khi sự kiện bắt đầu</p>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Hạn đăng ký</label>
+                        <input type="datetime-local" value={formData.registration_deadline} onChange={(e) => setFormData({ ...formData, registration_deadline: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 shadow-sm" />
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-4">
+                      <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><MapPin size={16} /> Địa điểm & GPS</h3>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nơi tổ chức</label>
+                        <input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 shadow-sm" placeholder="Hội trường A..." />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tọa độ GPS (Dùng để Check-in)</label>
+                        <div className="flex gap-2">
+                          <input readOnly value={formData.latitude && formData.longitude ? `${formData.latitude}, ${formData.longitude}` : ''} className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-500" placeholder="Chưa chọn tọa độ" />
+                          <button type="button" onClick={() => setIsMapModalOpen(true)} className="px-4 py-3 bg-emerald-100 text-emerald-600 rounded-xl hover:bg-emerald-200 font-medium whitespace-nowrap flex items-center gap-2 transition-colors">
+                            <MapIcon size={18} /> Bản đồ
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 pt-2">
+                         <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Số lượng tối đa</label>
+                          <input type="number" value={formData.max_participants} onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 shadow-sm" placeholder="100" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Điểm rèn luyện</label>
+                          <input type="number" value={formData.training_points} onChange={(e) => setFormData({ ...formData, training_points: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 shadow-sm" placeholder="5" />
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Location & GPS */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-black text-blue-600 uppercase tracking-wider flex items-center">
-                      <MapIcon className="h-4 w-4 mr-2" />
-                      Địa điểm & GPS
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-700 ml-1">Địa điểm tổ chức</label>
-                        <input
-                          type="text"
-                          required
-                          value={formData.location}
-                          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Ví dụ: Hội trường A1, Cơ sở Khoái Châu"
-                        />
-                      </div>
-
-{/* Map Picker Button */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-gray-700 ml-1">Tọa độ GPS</label>
-                      <button
-                        type="button"
-                        className="w-full bg-emerald-50 text-emerald-600 flex items-center justify-center px-4 py-3 rounded-2xl text-sm font-medium hover:bg-emerald-100 transition-colors"
-                        onClick={() => setIsMapModalOpen(true)}
-                      >
-                        <MapPin className="mr-2 h-4 w-4" />
-                        Chọn vị trí trên Bản đồ
-                      </button>
-                    </div>
-                    </div>
-                  </div>
-                </div>
-
-                 {/* Slots & Points */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-black text-blue-600 uppercase tracking-wider flex items-center">
-                    <Users className="h-4 w-4 mr-2" />
-                    Số lượng & Quyền lợi
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-gray-700 ml-1">Số lượng tham gia tối đa</label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        value={formData.max_participants}
-                        onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="100"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-gray-700 ml-1">Điểm rèn luyện tích lũy</label>
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        value={formData.training_points}
-                        onChange={(e) => setFormData({ ...formData, training_points: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="5"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Banner Image Upload */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-black text-blue-600 uppercase tracking-wider flex items-center">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Ảnh bìa sự kiện
-                  </h3>
-                  <div className="space-y-3">
-                    {imagePreview ? (
-                      <div className="relative w-full h-48 rounded-2xl overflow-hidden border-2 border-blue-200">
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleRemoveImage}
-                          className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-lg"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : formData.banner_url ? (
-                      <div className="relative w-full h-48 rounded-2xl overflow-hidden border-2 border-gray-200">
-                        <img
-                          src={formData.banner_url}
-                          alt="Current banner"
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                        <p className="absolute bottom-2 left-2 text-xs bg-black/60 text-white px-2 py-1 rounded">
-                          Ảnh hiện tại
-                        </p>
-                      </div>
-                    ) : (
-                      <label className="flex flex-col items-center justify-center w-full h-32 rounded-2xl border-2 border-dashed border-gray-300 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload className="h-8 w-8 mb-2 text-gray-400" />
-                          <p className="text-sm font-bold text-gray-500">Chọn ảnh bìa</p>
-                        </div>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={handleImageChange}
-                        />
+                  {/* Banner Image */}
+                  <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                    <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><Image size={16} /> Ảnh bìa sự kiện</h3>
+                    <div className="flex items-center justify-center w-full">
+                      <label className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-emerald-300 rounded-2xl cursor-pointer bg-white hover:bg-emerald-50 transition-colors overflow-hidden group">
+                        {imagePreview || formData.banner_url ? (
+                          <>
+                            <img src={imagePreview || formData.banner_url} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-40 transition-opacity" />
+                            <div className="absolute flex flex-col items-center text-emerald-800 opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md">
+                              <Upload size={32} className="mb-2" />
+                              <span className="font-semibold">Đổi ảnh khác</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6 text-emerald-600">
+                            <Image size={40} className="mb-3 opacity-60" />
+                            <p className="mb-2 text-sm font-semibold">Nhấn để tải ảnh lên</p>
+                            <p className="text-xs text-emerald-500/70">PNG, JPG, WEBP (Max: 5MB)</p>
+                          </div>
+                        )}
+                        <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
                       </label>
-                    )}
+                    </div>
                   </div>
-                </div>
+                </form>
+              </div>
 
-                <div className="pt-6 border-t border-gray-100 flex items-center justify-between">
-                  <div className="text-xs text-gray-400 italic flex items-center">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Sự kiện sẽ được gửi đến Admin hệ thống để phê duyệt trước khi hiển thị.
-                  </div>
-                  <div className="flex space-x-3">
-                    <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="px-6 rounded-2xl border-gray-200">
-                      Hủy
-                    </Button>
-                    <Button type="submit" disabled={!!isActionLoading} className="px-8 rounded-2xl shadow-lg shadow-blue-100 flex items-center space-x-2">
-                      {isActionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                      <span>{editingEventId ? 'Cập nhật sự kiện' : 'Gửi yêu cầu phê duyệt'}</span>
-                    </Button>
-                  </div>
+              {/* Modal Footer */}
+              <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+                <p className="text-xs text-gray-500 flex items-center gap-1.5"><AlertCircle size={14} className="text-amber-500"/> Kiểm tra kỹ thông tin trước khi lưu.</p>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 rounded-xl font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                    Hủy bỏ
+                  </button>
+                  <button type="submit" form="event-form" disabled={!!isActionLoading} className="px-6 py-2.5 rounded-xl font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50 disabled:transform-none">
+                    {isActionLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                    {editingEventId ? 'Cập nhật sự kiện' : 'Tạo sự kiện'}
+                  </button>
                 </div>
-              </form>
-</motion.div>
-           </div>
-         )}
-       </AnimatePresence>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
-      {/* Map Modal */}
+      {/* ── Additional Modals ── */}
       <MapModal
         isOpen={isMapModalOpen}
         onClose={() => setIsMapModalOpen(false)}
         latitude={formData.latitude}
         longitude={formData.longitude}
-        onLocationSelect={handleMapLocationSelect}
+        onLocationSelect={(lat: string, lng: string) => {
+          setFormData({ ...formData, latitude: lat, longitude: lng });
+          setIsMapModalOpen(false);
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        isLoading={!!isActionLoading}
+        onClose={() => !isActionLoading && setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
       />
     </div>
   );

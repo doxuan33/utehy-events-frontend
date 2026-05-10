@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
 import {
   Users,
   Calendar,
@@ -20,6 +21,7 @@ import {
 import { eventsApi } from '@/api/events.api';
 import { pagesApi } from '@/api/pages.api';
 import { registrationsApi } from '@/api/registrations.api';
+import { adminApi } from '@/api/admin.api';
 import { Button } from '@/components/common/Button';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -34,11 +36,12 @@ const safeFormatDate = (dateString: string | null | undefined, formatStr: string
 
 export const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [stats, setStats] = useState({
-    totalEvents: 0,
-    totalRegistrations: 0,
-    totalCheckins: 0,
-    pendingApprovals: 0
+    total_users: 0,
+    total_pages: 0,
+    approved_events: 0,
+    pending_events: 0
   });
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -52,27 +55,33 @@ export const Dashboard = () => {
     try {
       setIsLoading(true);
 
-      // 1. Get managed page
+      // 1. Call admin dashboard API to get real statistics
+      const dashboardRes = await adminApi.getDashboard();
+      const dData = dashboardRes?.data?.data || {};
+
+      setStats({
+        total_users: dData.total_users || 0,
+        total_pages: dData.total_pages || 0,
+        approved_events: dData.approved_events || 0,
+        pending_events: dData.pending_events || 0
+      });
+
+      // 2. Get managed page (keep existing logic for page-specific features)
       const pagesRes = await pagesApi.getAll();
       const managedPage = pagesRes.data.data?.[0];
-      if (!managedPage) return;
-      setPage(managedPage);
+      if (managedPage) {
+        setPage(managedPage);
+      }
 
-      // 2. Get events - handle both array and paginated response
-      const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 100 });
+      // 3. Get events - handle both array and paginated response
+      const eventsRes = await eventsApi.getAll({ page_id: managedPage?.id, limit: 100 });
       const eventsData = eventsRes.data.data;
       const events = Array.isArray(eventsData) ? eventsData : eventsData?.data || [];
 
-      // 3. Fetch registrations for stats
-      let totalReg = 0;
-      let totalCheck = 0;
-      let pending = 0;
-      const activityLog: any[] = [];
+      // 4. Fetch registrations for activity log
+      let activityLog: any[] = [];
 
       for (const event of events) {
-        totalReg += event._count?.registrations || 0;
-        if (event.status === 'PENDING') pending++;
-
         // Add event creation activity
         activityLog.push({
           id: `event-${event.id}`,
@@ -85,13 +94,11 @@ export const Dashboard = () => {
 
         // Fetch registrations for detailed stats
         try {
-          const regRes = await registrationsApi.getEventRegistrations(event.id, managedPage.id, { limit: 50 });
+          const regRes = await registrationsApi.getEventRegistrations(event.id, managedPage?.id, { limit: 50 });
           const regsData = regRes.data.data;
           const regs = Array.isArray(regsData) ? regsData : regsData?.data || [];
 
           regs.forEach((reg: any, idx: number) => {
-            if (reg.status === 'ATTENDED') totalCheck++;
-
             // Add registration activity for first registrations only
             if (idx < 3) {
               activityLog.push({
@@ -104,19 +111,12 @@ export const Dashboard = () => {
               });
             }
           });
-         } catch (e) {
-           // Ignore fetch errors for individual event registrations
-         }
+        } catch (e) {
+          // Ignore fetch errors for individual event registrations
+        }
       }
 
-      setStats({
-        totalEvents: events.length,
-        totalRegistrations: totalReg,
-        totalCheckins: totalCheck,
-        pendingApprovals: pending
-      });
-
-      // 4. Set upcoming events (sorted by date, next 5)
+      // 5. Set upcoming events (sorted by date, next 5)
       const upcoming = events
         .filter((e: any) => {
           const eventDate = new Date(e.start_time);
@@ -126,7 +126,7 @@ export const Dashboard = () => {
         .slice(0, 5);
       setUpcomingEvents(upcoming);
 
-      // 5. Set recent activity (sorted by time, last 10) - filter invalid dates
+      // 6. Set recent activity (sorted by time, last 10) - filter invalid dates
       const validActivities = activityLog.filter((a) => {
         const date = new Date(a.time);
         return !isNaN(date.getTime());
@@ -136,8 +136,33 @@ export const Dashboard = () => {
 
     } catch (err) {
       console.error('Failed to fetch dashboard data', err);
+      toast.error('Lỗi tải dữ liệu. Vui lòng thử lại sau.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Export training points to Excel
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      const response = await adminApi.exportTrainingPoints();
+      const url = window.URL.createObjectURL(new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'bang-diem-ren-luyen.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Xuất báo cáo điểm RL thành công!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Xuất báo cáo thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -165,62 +190,76 @@ export const Dashboard = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-1">
-            Chào mừng, {page.name}!
+            Bảng điều khiển quản trị
           </h1>
           <p className="text-gray-500 font-medium">
             Tổng quan hoạt động Câu lạc bộ trong tuần qua
           </p>
         </div>
-        <Link to="/page-admin/events">
-          <Button className="rounded-2xl px-8 py-3 shadow-lg shadow-emerald-100 bg-emerald-500 hover:bg-emerald-600">
-            <Plus className="h-5 w-5 mr-2" />
-            Tạo sự kiện mới
+        <div className="flex gap-3">
+          <Button
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+            onClick={handleExportExcel}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+            ) : (
+              <Download className="h-5 w-5 mr-2" />
+            )}
+            Xuất báo cáo điểm RL
           </Button>
-        </Link>
+          <Link to="/page-admin/events">
+            <Button className="rounded-2xl px-8 py-3 shadow-lg shadow-emerald-100 bg-emerald-500 hover:bg-emerald-600">
+              <Plus className="h-5 w-5 mr-2" />
+              Tạo sự kiện mới
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           {
-            label: 'Tổng sự kiện',
-            value: stats.totalEvents,
-            icon: Calendar,
-            color: 'emerald',
-            bgFrom: 'from-emerald-500',
-            bgTo: 'to-teal-400',
-            accentClass: 'bg-emerald-500',
-            trend: '+12% tuần này'
-          },
-          {
-            label: 'Tổng đăng ký',
-            value: stats.totalRegistrations,
+            label: 'Tổng sinh viên',
+            value: stats.total_users,
             icon: Users,
             color: 'blue',
             bgFrom: 'from-blue-500',
             bgTo: 'to-indigo-400',
             accentClass: 'bg-blue-500',
-            trend: '+24% tuần này'
+            trend: '+12% tuần này'
           },
           {
-            label: 'Tổng điểm danh',
-            value: stats.totalCheckins,
+            label: 'Fanpage',
+            value: stats.total_pages,
+            icon: Star,
+            color: 'purple',
+            bgFrom: 'from-purple-500',
+            bgTo: 'to-pink-400',
+            accentClass: 'bg-purple-500',
+            trend: '+3 tháng này'
+          },
+          {
+            label: 'Sự kiện đã duyệt',
+            value: stats.approved_events,
             icon: CheckCircle2,
-            color: 'amber',
-            bgFrom: 'from-amber-500',
-            bgTo: 'to-orange-400',
-            accentClass: 'bg-amber-500',
-            trend: '68% tỷ lệ'
+            color: 'emerald',
+            bgFrom: 'from-emerald-500',
+            bgTo: 'to-teal-400',
+            accentClass: 'bg-emerald-500',
+            trend: '+8 tháng này'
           },
           {
             label: 'Chờ phê duyệt',
-            value: stats.pendingApprovals,
+            value: stats.pending_events,
             icon: Clock,
             color: 'rose',
             bgFrom: 'from-rose-500',
             bgTo: 'to-pink-400',
             accentClass: 'bg-rose-500',
-            trend: 'Cần xử lý'
+            trend: `${stats.pending_events} cần xử lý`
           }
         ].map((stat, i) => {
           const Icon = stat.icon;
@@ -442,12 +481,18 @@ export const Dashboard = () => {
                   </div>
                 </button>
               </Link>
-              <button className="w-full flex items-center p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all text-left group">
+              <button
+                className="w-full flex items-center p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all text-left group"
+                onClick={handleExportExcel}
+                disabled={isExporting}
+              >
                 <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
                   <Download className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-sm">Xuất báo cáo</p>
+                  <p className="font-bold text-sm">
+                    {isExporting ? 'Đang xuất...' : 'Xuất báo cáo'}
+                  </p>
                   <p className="text-[10px] text-emerald-100">Tải dữ liệu hoạt động</p>
                 </div>
               </button>
@@ -461,21 +506,21 @@ export const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Tỷ lệ tham gia</span>
                 <span className="text-sm font-bold text-emerald-600">
-                  {stats.totalRegistrations > 0 ? Math.round((stats.totalCheckins / stats.totalRegistrations) * 100) : 0}%
+                  {stats.total_users > 0 ? Math.round((stats.approved_events / (stats.total_users / 10) || 0) * 100) : 0}%
                 </span>
               </div>
               <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${stats.totalRegistrations > 0 ? (stats.totalCheckins / stats.totalRegistrations) * 100 : 0}%` }}
+                  animate={{ width: `${stats.total_users > 0 ? (stats.approved_events / (stats.total_users / 10) || 0) * 100 : 0}%` }}
                   transition={{ duration: 1, delay: 0.5 }}
                   className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full"
                 />
               </div>
               <div className="flex items-center justify-between pt-2">
-                <span className="text-sm text-gray-600">Trung bình/ sự kiện</span>
+                <span className="text-sm text-gray-600">Trung bình/ người dùng</span>
                 <span className="text-sm font-bold text-gray-900">
-                  {stats.totalEvents > 0 ? Math.round(stats.totalRegistrations / stats.totalEvents) : 0}
+                  {stats.total_users > 0 ? Math.round(stats.approved_events / stats.total_users) : 0}
                 </span>
               </div>
             </div>
