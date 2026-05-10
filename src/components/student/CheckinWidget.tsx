@@ -25,7 +25,7 @@ export const CheckinWidget = ({ className }: CheckinWidgetProps) => {
         Vui lòng quét mã QR tại địa điểm sự kiện để điểm danh nhanh chóng.
       </p>
 
-       <Link to="/checkin">
+       <Link to="/scan-qr">
          <button className="w-full py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2">
            <QrCode className="h-5 w-5" />
            QUÉT MÃ ĐIỂM DANH

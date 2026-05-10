@@ -10,7 +10,7 @@ const navItems = [
   { path: '/', icon: Home, label: 'Trang chủ' },
   { path: '/events', icon: Calendar, label: 'Sự kiện' },
   { path: '/clubs', icon: Users, label: 'Câu lạc bộ' },
-  { path: '/checkin', icon: QrCode, label: 'Điểm danh GPS' },
+  { path: '/scan-qr', icon: QrCode, label: 'Điểm danh GPS' },
   { path: '/my-events', icon: BookOpen, label: 'Lịch trình' },
 ];
 
