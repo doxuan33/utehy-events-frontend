@@ -132,24 +132,20 @@ export const PageManagement = () => {
     }
   };
 
-  const handleToggleLock = async (page: any) => {
-    const action = page.is_locked ? 'mở khóa' : 'khóa';
-    setConfirmLockAction(() => async () => {
-      setShowConfirmDialog(false);
-      try {
-        if (page.is_locked) {
-          await pagesApi.unlock(page.id);
-        } else {
-          await pagesApi.lock(page.id);
-        }
-        fetchPages();
-      } catch (err) {
-        console.error('Failed to toggle lock', err);
-        alert('Thao tác thất bại.');
-      }
-    });
-    setShowConfirmDialog(true);
-  };
+   const handleToggleLock = async (page: any) => {
+     const action = page.is_verified ? 'khóa' : 'mở khóa';
+     setConfirmLockAction(() => async () => {
+       setShowConfirmDialog(false);
+       try {
+         await pagesApi.update(page.id, { is_verified: !page.is_verified });
+         fetchPages();
+       } catch (err) {
+         console.error('Failed to toggle lock', err);
+         alert('Thao tác thất bại.');
+       }
+     });
+     setShowConfirmDialog(true);
+   };
 
   return (
     <div className="space-y-8">
@@ -192,9 +188,9 @@ export const PageManagement = () => {
               key={page.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden ${page.is_locked ? 'opacity-75' : ''}`}
+               className={`bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden ${!page.is_verified ? 'opacity-75' : ''}`}
             >
-              {page.is_locked && (
+               {!page.is_verified && (
                 <div className="absolute top-4 right-4 bg-red-500 text-white p-2 rounded-xl shadow-lg">
                   <Lock className="h-4 w-4" />
                 </div>
@@ -216,10 +212,10 @@ export const PageManagement = () => {
                   </button>
                   <button 
                     onClick={() => handleToggleLock(page)}
-                    className={`p-3 rounded-2xl transition-all ${page.is_locked ? 'text-green-600 hover:bg-green-50' : 'text-orange-600 hover:bg-orange-50'}`}
-                    title={page.is_locked ? 'Mở khóa' : 'Khóa'}
+                     className={`p-3 rounded-2xl transition-all ${!page.is_verified ? 'text-green-600 hover:bg-green-50' : 'text-orange-600 hover:bg-orange-50'}`}
+                    title={!page.is_verified ? 'Mở khóa' : 'Khóa'}
                   >
-                    {page.is_locked ? <Unlock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+                    {!page.is_verified ? <Unlock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
                   </button>
                 </div>
               </div>

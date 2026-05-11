@@ -12,7 +12,6 @@ export const SystemAdminLayout = () => {
     { path: '/admin', icon: BarChart3, label: 'Tổng quan', exact: true },
     { path: '/admin/events', icon: Calendar, label: 'Sự kiện' },
     { path: '/admin/pages', icon: FileText, label: 'Trang CLB' },
-    { path: '/admin/clubs', icon: Building2, label: 'Quản lý CLB' },
     { path: '/admin/categories', icon: Tag, label: 'Danh mục' },
     { path: '/admin/users', icon: Users, label: 'Người dùng' },
   ];

@@ -8,7 +8,9 @@ export interface CreatePageParams {
   cover_url?: string;
 }
 
-export interface UpdatePageParams extends Partial<CreatePageParams> {}
+export interface UpdatePageParams extends Partial<CreatePageParams> {
+  is_verified?: boolean;
+}
 
 export interface AddMemberParams {
   user_id: string;
@@ -82,6 +84,7 @@ export interface Page {
   avatar_url: string | null;
   cover_url: string | null;
   is_following?: boolean;
+  is_verified: boolean;
   created_at: string;
   updated_at: string;
 }
