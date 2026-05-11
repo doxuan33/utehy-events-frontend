@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '@/api/admin.api';
 import { eventsApi } from '@/api/events.api';
+import { aiApi } from '@/api/ai.api';
 import { Button } from '@/components/common/Button';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -15,27 +16,33 @@ import {
   X,
   Award,
   Users,
-  Info
+  Info,
+  Wand2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { toast } from 'sonner';
 
-export const EventApproval = () => {
-  const [events, setEvents] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isActionLoading, setIsActionLoading] = useState(false);
-  const [isBulkLoading, setIsBulkLoading] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
-  const [isRejecting, setIsRejecting] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState<{
-    isOpen: boolean;
-    title: string;
-    description: string;
-    onConfirm: () => void;
-  }>({ isOpen: false, title: '', description: '', onConfirm: () => {} });
+ export const EventApproval = () => {
+   const [events, setEvents] = useState<any[]>([]);
+   const [isLoading, setIsLoading] = useState(true);
+   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+   const [isModalOpen, setIsModalOpen] = useState(false);
+   const [isActionLoading, setIsActionLoading] = useState(false);
+   const [isBulkLoading, setIsBulkLoading] = useState(false);
+   const [rejectReason, setRejectReason] = useState('');
+   const [isRejecting, setIsRejecting] = useState(false);
+   const [confirmDialog, setConfirmDialog] = useState<{
+     isOpen: boolean;
+     title: string;
+     description: string;
+     onConfirm: () => void;
+   }>({ isOpen: false, title: '', description: '', onConfirm: () => {} });
+
+   // AI Analysis states
+   const [isAnalyzing, setIsAnalyzing] = useState(false);
+   const [aiResult, setAiResult] = useState<{ isSafe: boolean; score: number; reason: string } | null>(null);
 
   useEffect(() => {
     fetchPendingEvents();
@@ -53,12 +60,13 @@ export const EventApproval = () => {
     }
   };
 
-  const handleOpenPreview = (event: any) => {
-    setSelectedEvent(event);
-    setIsModalOpen(true);
-    setIsRejecting(false);
-    setRejectReason('');
-  };
+   const handleOpenPreview = (event: any) => {
+     setSelectedEvent(event);
+     setIsModalOpen(true);
+     setIsRejecting(false);
+     setRejectReason('');
+     setAiResult(null); // Reset AI result when opening new event
+   };
 
   const handleApprove = async (id: string) => {
     setConfirmDialog({
@@ -107,23 +115,46 @@ export const EventApproval = () => {
     });
   };
 
-  const handleReject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rejectReason.trim()) return;
+   const handleReject = async (e: React.FormEvent) => {
+     e.preventDefault();
+     if (!rejectReason.trim()) return;
 
-    try {
-      setIsActionLoading(true);
-      await eventsApi.reject(selectedEvent.id, rejectReason);
-      setEvents(events.filter(e => e.id !== selectedEvent.id));
-      setIsModalOpen(false);
-      alert('Đã từ chối sự kiện.');
-    } catch (err) {
-      console.error('Failed to reject event', err);
-      alert('Từ chối thất bại.');
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
+     try {
+       setIsActionLoading(true);
+       await eventsApi.reject(selectedEvent.id, rejectReason);
+       setEvents(events.filter(e => e.id !== selectedEvent.id));
+       setIsModalOpen(false);
+       alert('Đã từ chối sự kiện.');
+     } catch (err) {
+       console.error('Failed to reject event', err);
+       alert('Từ chối thất bại.');
+     } finally {
+       setIsActionLoading(false);
+     }
+   };
+
+   const handleAnalyzeAI = async () => {
+     if (!selectedEvent) return;
+     try {
+       setIsAnalyzing(true);
+       setAiResult(null);
+       
+       const payload = {
+         title: selectedEvent.title,
+         description: selectedEvent.description || '',
+         location: selectedEvent.location || '',
+         organizer: selectedEvent.page?.name || '',
+       };
+       
+       const result = await aiApi.analyzeEvent(payload);
+       setAiResult(result.data.data);
+     } catch (err: any) {
+       console.error('AI analysis failed:', err);
+       toast.error(err.response?.data?.message || 'Phân tích AI thất bại. Vui lòng thử lại.');
+     } finally {
+       setIsAnalyzing(false);
+     }
+   };
 
   return (
     <div className="space-y-8">
@@ -346,48 +377,93 @@ export const EventApproval = () => {
                     />
                   </motion.div>
                 )}
-              </div>
+               </div>
 
-              <div className="p-8 border-t border-gray-50 flex items-center space-x-4 flex-shrink-0">
-                {!isRejecting ? (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setIsRejecting(true)}
-                      className="flex-1 py-4 rounded-2xl font-bold border-red-100 text-red-600 hover:bg-red-50"
-                    >
-                      <XCircle className="h-5 w-5 mr-2" />
-                      Từ chối
-                    </Button>
-                    <Button 
-                      onClick={() => handleApprove(selectedEvent.id)}
-                      disabled={isActionLoading}
-                      className="flex-2 py-4 rounded-2xl font-bold bg-green-600 hover:bg-green-700 shadow-xl shadow-green-500/20"
-                    >
-                      {isActionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
-                      Phê duyệt ngay
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setIsRejecting(false)}
-                      className="flex-1 py-4 rounded-2xl font-bold"
-                    >
-                      Hủy
-                    </Button>
-                    <Button 
-                      onClick={handleReject}
-                      disabled={isActionLoading || !rejectReason.trim()}
-                      className="flex-2 py-4 rounded-2xl font-bold bg-red-600 hover:bg-red-700 shadow-xl shadow-red-500/20"
-                    >
-                      {isActionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <XCircle className="h-5 w-5 mr-2" />}
-                      Xác nhận từ chối
-                    </Button>
-                  </>
-                )}
-              </div>
+               {/* AI Analysis Result */}
+               {aiResult && (
+                 <div className="px-8 py-4 bg-gray-50 border-t border-gray-100">
+                   {aiResult.isSafe ? (
+                     <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                       <div className="flex items-center gap-2 mb-2">
+                         <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                         <span className="text-sm font-bold text-emerald-800">
+                           AI Đánh giá: AN TOÀN (Điểm: {aiResult.score}/100)
+                         </span>
+                       </div>
+                       <p className="text-sm text-emerald-700 leading-relaxed pl-7">
+                         {aiResult.reason}
+                       </p>
+                     </div>
+                   ) : (
+                     <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
+                       <div className="flex items-center gap-2 mb-2">
+                         <AlertCircle className="h-5 w-5 text-red-600" />
+                         <span className="text-sm font-bold text-red-800">
+                           CẢNH BÁO TỪ AI: RỦI RO CAO
+                         </span>
+                       </div>
+                       <p className="text-sm text-red-700 leading-relaxed pl-7">
+                         {aiResult.reason}
+                       </p>
+                     </div>
+                   )}
+                 </div>
+               )}
+
+               <div className="p-8 border-t border-gray-50 flex items-center space-x-4 flex-shrink-0">
+                 {!isRejecting ? (
+                   <>
+                     <Button 
+                       variant="outline" 
+                       onClick={() => setIsRejecting(true)}
+                       className="flex-1 py-4 rounded-2xl font-bold border-red-100 text-red-600 hover:bg-red-50"
+                     >
+                       <XCircle className="h-5 w-5 mr-2" />
+                       Từ chối
+                     </Button>
+                     <Button 
+                       onClick={() => handleApprove(selectedEvent.id)}
+                       disabled={isActionLoading}
+                       className="flex-2 py-4 rounded-2xl font-bold bg-green-600 hover:bg-green-700 shadow-xl shadow-green-500/20"
+                     >
+                       {isActionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
+                       Phê duyệt ngay
+                     </Button>
+                   </>
+                 ) : (
+                   <>
+                     <Button 
+                       variant="outline" 
+                       onClick={() => setIsRejecting(false)}
+                       className="flex-1 py-4 rounded-2xl font-bold"
+                     >
+                       Hủy
+                     </Button>
+                     <Button 
+                       onClick={handleReject}
+                       disabled={isActionLoading || !rejectReason.trim()}
+                       className="flex-2 py-4 rounded-2xl font-bold bg-red-600 hover:bg-red-700 shadow-xl shadow-red-500/20"
+                     >
+                       {isActionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <XCircle className="h-5 w-5 mr-2" />}
+                       Xác nhận từ chối
+                     </Button>
+                   </>
+                 )}
+                 <div className="flex-1" />
+                 <Button
+                   variant="outline"
+                   onClick={handleAnalyzeAI}
+                   disabled={isAnalyzing}
+                   className="flex-1 py-4 rounded-2xl font-bold border-blue-200 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-2"
+                 >
+                   {isAnalyzing ? (
+                     <Loader2 className="h-5 w-5 animate-spin" />
+                   ) : (
+                     <Wand2 className="h-5 w-5" />
+                   )}
+                   {isAnalyzing ? 'Đang phân tích...' : '🤖 Phân tích bằng AI'}
+                 </Button>
+               </div>
             </motion.div>
           </div>
         )}

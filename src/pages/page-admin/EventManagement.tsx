@@ -4,6 +4,7 @@ import { eventsApi } from '@/api/events.api';
 import { pagesApi } from '@/api/pages.api';
 import { checkinApi } from '@/api/checkin.api';
 import { uploadApi } from '@/api/upload.api';
+import { aiApi } from '@/api/ai.api';
 import { Button } from '@/components/common/Button';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,7 +12,7 @@ import {
   AlertCircle, X, Send, Clock, Map as MapIcon, CheckCircle2,
   Timer, FileText, ChevronRight, Download, Upload, Edit2,
   Trash2, Maximize, Navigation, Target, Crosshair, LocateFixed,
-  Image, QrCode, UserCheck, AlertTriangle
+  Image, QrCode, UserCheck, AlertTriangle, Wand2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -242,11 +243,16 @@ export const EventManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
-  // Modals & Dialogs
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, type: 'danger' as any });
+   // Modals & Dialogs
+   const [isModalOpen, setIsModalOpen] = useState(false);
+   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, type: 'danger' as any });
+
+   // AI Assistant states
+   const [aiPrompt, setAiPrompt] = useState('');
+   const [isGenerating, setIsGenerating] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '', description: '', category_id: '', location: '', latitude: '', longitude: '',
@@ -357,13 +363,38 @@ export const EventManagement = () => {
     setImageFile(null); setImagePreview(''); setIsModalOpen(true);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) return toast.error('Vui lòng chọn file ảnh hợp lệ');
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImageFile(file); setImagePreview(URL.createObjectURL(file));
-  };
+   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const file = e.target.files?.[0];
+     if (!file) return;
+     if (!file.type.startsWith('image/')) return toast.error('Vui lòng chọn file ảnh hợp lệ');
+     if (imagePreview) URL.revokeObjectURL(imagePreview);
+     setImageFile(file); setImagePreview(URL.createObjectURL(file));
+   };
+
+   const handleAiGenerate = async () => {
+     if (!aiPrompt.trim()) {
+       toast.error('Vui lòng nhập từ khóa hoặc chủ đề cho sự kiện');
+       return;
+     }
+     try {
+       setIsGenerating(true);
+       const result = await aiApi.generateContent(aiPrompt);
+       // Auto-fill form fields
+       setFormData(prev => ({
+         ...prev,
+         title: result.data.data.title,
+         description: result.data.data.description,
+       }));
+       setIsAiModalOpen(false);
+       setAiPrompt('');
+       toast.success('AI đã tạo nội dung thành công! Bạn có thể chỉnh sửa lại cho phù hợp.');
+     } catch (err: any) {
+       console.error('AI generate error:', err);
+       toast.error(err.response?.data?.message || 'Lỗi khi tạo nội dung. Vui lòng thử lại.');
+     } finally {
+       setIsGenerating(false);
+     }
+   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -615,10 +646,21 @@ export const EventManagement = () => {
                   <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
                     <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><FileText size={16} /> Thông tin cơ bản</h3>
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tên sự kiện <span className="text-red-500">*</span></label>
-                        <input required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm" placeholder="Ví dụ: Lễ hội Xuân 2024" />
-                      </div>
+                       <div>
+                         <div className="flex items-center justify-between mb-1.5">
+                           <label className="block text-sm font-semibold text-gray-700">Tên sự kiện <span className="text-red-500">*</span></label>
+                           <button
+                             type="button"
+                             onClick={() => setIsAiModalOpen(true)}
+                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md shadow-indigo-200"
+                             title="Viết bài bằng AI"
+                           >
+                             <Wand2 size={14} />
+                             Viết bài bằng AI
+                           </button>
+                         </div>
+                         <input required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm" placeholder="Ví dụ: Lễ hội Xuân 2024" />
+                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mô tả chi tiết <span className="text-red-500">*</span></label>
                         <textarea required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={4} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm resize-none" placeholder="Mô tả mục đích, nội dung..." />
@@ -726,8 +768,63 @@ export const EventManagement = () => {
         )}
       </AnimatePresence>
 
-      {/* ── Additional Modals ── */}
-      <MapModal
+       {/* ── AI Assistant Modal ── */}
+       <AnimatePresence>
+         {isAiModalOpen && (
+           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAiModalOpen(false)} className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden border border-purple-100">
+               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-white">
+                 <h3 className="text-lg font-bold text-purple-800 flex items-center gap-2">
+                   <Wand2 className="text-purple-500" size={22} />
+                   Trợ lý AI tạo nội dung
+                 </h3>
+                 <button onClick={() => setIsAiModalOpen(false)} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors bg-white shadow-sm border border-gray-100">
+                   <X size={20} />
+                 </button>
+               </div>
+
+               <div className="p-6 space-y-4">
+                 <p className="text-sm text-gray-600">
+                   Nhập từ khóa hoặc chủ đề sự kiện, AI sẽ giúp bạn viết tiêu đề và mô tả hấp dẫn.
+                 </p>
+                 <div>
+                   <label className="block text-sm font-semibold text-gray-700 mb-2">Từ khóa / Chủ đề</label>
+                   <textarea
+                     value={aiPrompt}
+                     onChange={(e) => setAiPrompt(e.target.value)}
+                     rows={4}
+                     className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all shadow-sm resize-none"
+                     placeholder="Ví dụ: Sự kiện hiến máu mùa hè, 15/6, quyên góp máu cho người bệnh..."
+                   />
+                 </div>
+               </div>
+
+               <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                 <button
+                   type="button"
+                   onClick={() => setIsAiModalOpen(false)}
+                   className="px-5 py-2.5 rounded-xl font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+                 >
+                   Hủy bỏ
+                 </button>
+                 <button
+                   type="button"
+                   onClick={handleAiGenerate}
+                   disabled={isGenerating || !aiPrompt.trim()}
+                   className="px-5 py-2.5 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-500 to-indigo-500 shadow-lg shadow-indigo-200 hover:from-purple-600 hover:to-indigo-600 transition-all flex items-center gap-2 disabled:opacity-50 disabled:transform-none"
+                 >
+                   {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Wand2 size={18} />}
+                   {isGenerating ? 'Đang tạo...' : 'Tạo nội dung'}
+                 </button>
+               </div>
+             </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
+
+       {/* ── Additional Modals ── */}
+       <MapModal
         isOpen={isMapModalOpen}
         onClose={() => setIsMapModalOpen(false)}
         latitude={formData.latitude}

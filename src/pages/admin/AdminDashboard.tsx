@@ -267,7 +267,7 @@ function buildFallbackActivity(
 // =====================================================================
 //  Main Dashboard Component
 // =====================================================================
-export const Dashboard = () => {
+export const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);

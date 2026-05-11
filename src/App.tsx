@@ -29,7 +29,7 @@ import { PageManagement } from './pages/admin/PageManagement';
 import { CategoryManagement } from './pages/admin/CategoryManagement';
 import { EventApproval } from './pages/admin/EventApproval';
 import { StudentManagement } from './pages/admin/StudentManagement';
-import { Dashboard as AdminDashboard } from './pages/admin/Dashboard';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
 // import { SystemDashboard } from './pages/admin/SystemDashboard';
 import { ClubManagement } from './pages/admin/ClubManagement';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
