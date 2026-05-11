@@ -212,10 +212,10 @@ export const PageManagement = () => {
                   </button>
                   <button 
                     onClick={() => handleToggleLock(page)}
-                     className={`p-3 rounded-2xl transition-all ${!page.is_verified ? 'text-green-600 hover:bg-green-50' : 'text-orange-600 hover:bg-orange-50'}`}
-                    title={!page.is_verified ? 'Mở khóa' : 'Khóa'}
+                    className={`p-3 rounded-2xl transition-all ${page.is_locked ? 'text-green-600 hover:bg-green-50' : 'text-orange-600 hover:bg-orange-50'}`}
+                    title={page.is_locked ? 'Mở khóa' : 'Khóa'}
                   >
-                    {!page.is_verified ? <Unlock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+                    {page.is_locked ? <Unlock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
                   </button>
                 </div>
               </div>
