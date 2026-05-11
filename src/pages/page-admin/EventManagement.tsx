@@ -792,10 +792,15 @@ export const EventManagement = () => {
                           <X size={14} /> Xóa
                         </button>
                       </div>
-                      <div className="flex items-center justify-center">
+<div className="flex items-center justify-center">
                         <div className="relative w-full max-w-md aspect-[16/9] rounded-xl overflow-hidden shadow-lg border-2 border-white">
                           <img src={posterImageUrl} alt="AI Generated Poster" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <h3 className="text-white font-bold text-4xl uppercase drop-shadow-2xl text-center px-4">
+                              {formData.title}
+                            </h3>
+                          </div>
                         </div>
                       </div>
                       <p className="text-xs text-pink-600 mt-3 text-center flex items-center justify-center gap-1">
