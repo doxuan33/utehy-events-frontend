@@ -5,4 +5,6 @@ export const aiApi = {
     apiClient.post('/ai/generate-content', { prompt }),
   analyzeEvent: (eventData: any) =>
     apiClient.post('/ai/analyze-event', eventData),
+  generatePoster: (description: string) =>
+    apiClient.post('/ai/generate-poster', { description }),
 };

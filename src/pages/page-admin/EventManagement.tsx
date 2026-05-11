@@ -250,9 +250,13 @@ export const EventManagement = () => {
    const [editingEventId, setEditingEventId] = useState<string | null>(null);
    const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, type: 'danger' as any });
 
-   // AI Assistant states
-   const [aiPrompt, setAiPrompt] = useState('');
-   const [isGenerating, setIsGenerating] = useState(false);
+    // AI Assistant states
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    // AI Poster states
+    const [isGeneratingPoster, setIsGeneratingPoster] = useState(false);
+    const [posterImageUrl, setPosterImageUrl] = useState<string>('');
 
   const [formData, setFormData] = useState({
     title: '', description: '', category_id: '', location: '', latitude: '', longitude: '',
@@ -261,8 +265,8 @@ export const EventManagement = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
 
-  useEffect(() => { return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); }; }, [imagePreview]);
-  useEffect(() => { if (!isModalOpen) { setImagePreview(prev => { if (prev) URL.revokeObjectURL(prev); return ''; }); setImageFile(null); } }, [isModalOpen]);
+   useEffect(() => { return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); }; }, [imagePreview]);
+   useEffect(() => { if (!isModalOpen) { setImagePreview(prev => { if (prev) URL.revokeObjectURL(prev); return ''; }); setImageFile(null); setPosterImageUrl(''); } }, [isModalOpen]);
 
   useEffect(() => { fetchInitialData(); }, []);
 
@@ -363,38 +367,73 @@ export const EventManagement = () => {
     setImageFile(null); setImagePreview(''); setIsModalOpen(true);
   };
 
-   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     const file = e.target.files?.[0];
-     if (!file) return;
-     if (!file.type.startsWith('image/')) return toast.error('Vui lòng chọn file ảnh hợp lệ');
-     if (imagePreview) URL.revokeObjectURL(imagePreview);
-     setImageFile(file); setImagePreview(URL.createObjectURL(file));
-   };
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) return toast.error('Vui lòng chọn file ảnh hợp lệ');
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+      // Clear AI poster if user manually uploads
+      if (posterImageUrl) {
+        setPosterImageUrl('');
+        setFormData(prev => ({ ...prev, banner_url: '' }));
+      }
+    };
 
-   const handleAiGenerate = async () => {
-     if (!aiPrompt.trim()) {
-       toast.error('Vui lòng nhập từ khóa hoặc chủ đề cho sự kiện');
-       return;
-     }
-     try {
-       setIsGenerating(true);
-       const result = await aiApi.generateContent(aiPrompt);
-       // Auto-fill form fields
-       setFormData(prev => ({
-         ...prev,
-         title: result.data.data.title,
-         description: result.data.data.description,
-       }));
-       setIsAiModalOpen(false);
-       setAiPrompt('');
-       toast.success('AI đã tạo nội dung thành công! Bạn có thể chỉnh sửa lại cho phù hợp.');
-     } catch (err: any) {
-       console.error('AI generate error:', err);
-       toast.error(err.response?.data?.message || 'Lỗi khi tạo nội dung. Vui lòng thử lại.');
-     } finally {
-       setIsGenerating(false);
-     }
-   };
+    const handleAiGenerate = async () => {
+      if (!aiPrompt.trim()) {
+        toast.error('Vui lòng nhập từ khóa hoặc chủ đề cho sự kiện');
+        return;
+      }
+      try {
+        setIsGenerating(true);
+        const result = await aiApi.generateContent(aiPrompt);
+        // Auto-fill form fields
+        setFormData(prev => ({
+          ...prev,
+          title: result.data.data.title,
+          description: result.data.data.description,
+        }));
+        setIsAiModalOpen(false);
+        setAiPrompt('');
+        toast.success('AI đã tạo nội dung thành công! Bạn có thể chỉnh sửa lại cho phù hợp.');
+      } catch (err: any) {
+        console.error('AI generate error:', err);
+        toast.error(err.response?.data?.message || 'Lỗi khi tạo nội dung. Vui lòng thử lại.');
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
+    const handleGeneratePoster = async () => {
+      const description = formData.description.trim() || formData.title.trim();
+      if (!description) {
+        toast.error('Vui lòng nhập mô tả hoặc tiêu đề sự kiện');
+        return;
+      }
+
+      try {
+        setIsGeneratingPoster(true);
+        setPosterImageUrl('');
+        const result = await aiApi.generatePoster(description);
+
+        if (result?.data?.data?.imageUrl) {
+          setPosterImageUrl(result.data.data.imageUrl);
+          setFormData(prev => ({ ...prev, banner_url: result.data.data.imageUrl }));
+          setImageFile(null);
+          setImagePreview('');
+          toast.success('AI đã tạo poster thành công! Ảnh đã được thêm vào form.');
+        } else {
+          throw new Error('Không nhận được URL ảnh từ server');
+        }
+      } catch (err: any) {
+        console.error('AI poster generate error:', err);
+        toast.error(err.response?.data?.message || 'Lỗi khi tạo poster. Vui lòng thử lại.');
+      } finally {
+        setIsGeneratingPoster(false);
+      }
+    };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -646,21 +685,33 @@ export const EventManagement = () => {
                   <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
                     <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><FileText size={16} /> Thông tin cơ bản</h3>
                     <div className="space-y-4">
-                       <div>
-                         <div className="flex items-center justify-between mb-1.5">
-                           <label className="block text-sm font-semibold text-gray-700">Tên sự kiện <span className="text-red-500">*</span></label>
-                           <button
-                             type="button"
-                             onClick={() => setIsAiModalOpen(true)}
-                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md shadow-indigo-200"
-                             title="Viết bài bằng AI"
-                           >
-                             <Wand2 size={14} />
-                             Viết bài bằng AI
-                           </button>
-                         </div>
-                         <input required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm" placeholder="Ví dụ: Lễ hội Xuân 2024" />
-                       </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-sm font-semibold text-gray-700">Tên sự kiện <span className="text-red-500">*</span></label>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={handleGeneratePoster}
+                                disabled={isGeneratingPoster || (!formData.description.trim() && !formData.title.trim())}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-semibold rounded-xl hover:from-pink-600 hover:to-rose-600 transition-all shadow-md shadow-rose-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Tạo poster bằng AI"
+                              >
+                                {isGeneratingPoster ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
+                                {isGeneratingPoster ? 'Đang vẽ ảnh...' : '🎨 Tạo Poster'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsAiModalOpen(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md shadow-indigo-200"
+                                title="Viết bài bằng AI"
+                              >
+                                <Wand2 size={14} />
+                                Viết bài bằng AI
+                              </button>
+                            </div>
+                          </div>
+                          <input required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm" placeholder="Ví dụ: Lễ hội Xuân 2024" />
+                        </div>
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mô tả chi tiết <span className="text-red-500">*</span></label>
                         <textarea required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={4} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm resize-none" placeholder="Mô tả mục đích, nội dung..." />
@@ -721,10 +772,40 @@ export const EventManagement = () => {
                         </div>
                       </div>
                     </div>
-                  </div>
+                   </div>
 
-                  {/* Banner Image */}
-                  <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                  {/* AI Poster Preview */}
+                  {posterImageUrl && (
+                    <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-2xl border border-pink-100">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-bold text-pink-600 uppercase tracking-wider flex items-center gap-2">
+                          <Image size={16} /> Poster AI đã tạo
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPosterImageUrl('');
+                            setFormData(prev => ({ ...prev, banner_url: '' }));
+                          }}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
+                        >
+                          <X size={14} /> Xóa
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-center">
+                        <div className="relative w-full max-w-md aspect-[16/9] rounded-xl overflow-hidden shadow-lg border-2 border-white">
+                          <img src={posterImageUrl} alt="AI Generated Poster" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                        </div>
+                      </div>
+                      <p className="text-xs text-pink-600 mt-3 text-center flex items-center justify-center gap-1">
+                        <CheckCircle2 size={14} /> Ảnh sẽ được sử dụng làm banner sự kiện khi bạn lưu
+                      </p>
+                    </div>
+                  )}
+
+                   {/* Banner Image */}
+                   <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
                     <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><Image size={16} /> Ảnh bìa sự kiện</h3>
                     <div className="flex items-center justify-center w-full">
                       <label className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-emerald-300 rounded-2xl cursor-pointer bg-white hover:bg-emerald-50 transition-colors overflow-hidden group">
