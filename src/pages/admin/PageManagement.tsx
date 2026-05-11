@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 export const PageManagement = () => {
   const [pages, setPages] = useState<any[]>([]);
@@ -105,32 +106,48 @@ export const PageManagement = () => {
   };
 
   const handleCreateAdminAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setIsSubmitting(true);
-      // 1. Register user with PAGE_ADMIN role
-      const res = await authApi.register({
-        ...accountData,
-        role: 'PAGE_ADMIN'
-      });
-      
-      const newUser = res.data.data;
-      
-      // 2. Add user as member (owner) of the page
-      await pagesApi.addMember(selectedPage.id, {
-        user_id: newUser.id,
-        is_owner: true
-      });
+  e.preventDefault();
+  try {
+    setIsSubmitting(true);
+    
+    // 1. Tạo tài khoản (LƯU Ý: Phải nhập một email hoàn toàn mới trên form)
+    const res = await authApi.register({
+      ...accountData,
+      student_id: `ADMIN_${Date.now()}` // Tránh lỗi bắt buộc nhập mã SV
+    });
+    
+    console.log(">>> 1. KẾT QUẢ TẠO TÀI KHOẢN:", res.data);
 
-      alert(`Đã cấp tài khoản quản trị cho CLB ${selectedPage.name} thành công!`);
-      setIsAccountModalOpen(false);
-    } catch (err) {
-      console.error('Failed to create admin account', err);
-      alert('Cấp tài khoản thất bại.');
-    } finally {
-      setIsSubmitting(false);
+    // 2. Truy tìm ID của user vừa tạo bằng mọi giá
+    const responseData = res.data?.data;
+    const userId = responseData?.user?.id || responseData?.id;
+    
+    if (!userId) {
+      toast.error("Tạo tài khoản thành công nhưng không lấy được ID!");
+      console.error("Lỗi trích xuất ID, cấu trúc data là:", responseData);
+      return; // DỪNG LẠI NGAY ĐỂ TRÁNH GỌI API THỨ 2 BỊ LỖI 400
     }
-  };
+
+    console.log(">>> 2. ID TÀI KHOẢN HỢP LỆ:", userId);
+
+    // 3. Gán tài khoản vào CLB (Backend sẽ tự động biến user này thành PAGE_ADMIN)
+    await pagesApi.addMember(selectedPage.id, {
+      user_id: userId,
+      is_owner: true
+    });
+
+    toast.success(`Đã cấp tài khoản quản trị cho CLB thành công!`);
+    setIsAccountModalOpen(false);
+    
+  } catch (err: any) {
+    console.error('>>> LỖI CHI TIẾT:', err);
+    // Moi chính xác câu chửi của Server ra để hiển thị lên Toast
+    const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message;
+    toast.error(`Lỗi hệ thống: ${errorMessage}`);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
    const handleToggleLock = async (page: any) => {
      const action = page.is_verified ? 'khóa' : 'mở khóa';
