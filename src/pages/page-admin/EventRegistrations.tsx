@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { registrationsApi } from '@/api/registrations.api';
 import { checkinApi } from '@/api/checkin.api';
@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import confetti from 'canvas-confetti';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 type Registration = {
   id: string;
@@ -66,6 +67,8 @@ export const EventRegistrations = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ATTENDED' | 'REGISTERED'>('ALL');
   const [scannedStudentId, setScannedStudentId] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState<{ name: string; id: string } | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   // Fetch data
   useEffect(() => {
@@ -183,6 +186,91 @@ export const EventRegistrations = () => {
     setShowSuccessModal({ name: studentName, id: scannedStudentId.trim() });
     setTimeout(() => setShowSuccessModal(null), 3000);
   };
+
+  // QR Scanner Functions
+  const startScanner = useCallback(() => {
+    setIsCameraOpen(true);
+    setTimeout(() => {
+      const scanner = new Html5QrcodeScanner(
+        "qr-reader-admin",
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        },
+        false
+      );
+      scanner.render(onScanSuccess, onScanError);
+      scannerRef.current = scanner;
+    }, 100);
+  }, []);
+
+  const stopScanner = useCallback(() => {
+    if (scannerRef.current) {
+      scannerRef.current.clear().catch(console.error);
+      scannerRef.current = null;
+    }
+    setIsCameraOpen(false);
+  }, []);
+
+  const onScanSuccess = useCallback(async (decodedText: string) => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.clear();
+      } catch (err) {
+        console.error("Failed to clear scanner", err);
+      }
+      scannerRef.current = null;
+    }
+    
+    setIsCameraOpen(false);
+    
+    const reg = registrations.find(r =>
+      r.user.profile?.student_id === decodedText && r.status !== 'ATTENDED'
+    );
+
+    if (!reg) {
+      toast.error('Không tìm thấy sinh viên chưa điểm danh');
+      return;
+    }
+
+    const studentName = reg.user.profile?.full_name || '';
+    await handleManualCheckin(reg.id, decodedText);
+    setShowSuccessModal({ name: studentName, id: decodedText });
+    setTimeout(() => setShowSuccessModal(null), 3000);
+  }, [registrations]);
+
+  const onScanError = useCallback((error: any) => {
+    if (error && error.name) {
+      if (error.name === 'NotAllowedError') {
+        toast.error('Vui lòng cho phép trình duyệt truy cập Camera!');
+        stopScanner();
+      } else if (error.name === 'NotFoundError') {
+        toast.error('Không tìm thấy thiết bị Camera nào trên máy của bạn!');
+        stopScanner();
+      }
+    }
+  }, [stopScanner]);
+
+  // Cleanup scanner on unmount or tab change
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(console.error);
+        scannerRef.current = null;
+      }
+      setIsCameraOpen(false);
+    };
+  }, []);
+
+  // Stop scanner when switching away from scanner tab
+  useEffect(() => {
+    if (activeTab !== 'scanner' && scannerRef.current) {
+      scannerRef.current.clear().catch(console.error);
+      scannerRef.current = null;
+      setIsCameraOpen(false);
+    }
+  }, [activeTab]);
 
   // Export to Excel
   const handleExportExcel = () => {
@@ -436,44 +524,80 @@ export const EventRegistrations = () => {
           </motion.div>
         )}
 
-        {activeTab === 'scanner' && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-6"
-          >
-            {/* QR Scanner UI */}
-            <div className="max-w-md mx-auto">
-              <div className="relative bg-gray-950 rounded-3xl p-1 aspect-square flex items-center justify-center overflow-hidden shadow-2xl">
-                {/* Corner markers */}
-                <div className="absolute top-4 left-4 w-8 h-8 border-l-4 border-t-4 border-emerald-500 rounded-tl-lg z-10" />
-                <div className="absolute top-4 right-4 w-8 h-8 border-r-4 border-t-4 border-emerald-500 rounded-tr-lg z-10" />
-                <div className="absolute bottom-4 left-4 w-8 h-8 border-l-4 border-b-4 border-emerald-500 rounded-bl-lg z-10" />
-                <div className="absolute bottom-4 right-4 w-8 h-8 border-r-4 border-b-4 border-emerald-500 rounded-br-lg z-10" />
+{activeTab === 'scanner' && (
+           <motion.div
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: -10 }}
+             className="space-y-6"
+           >
+             {/* QR Scanner UI */}
+             <div className="max-w-md mx-auto">
+               <div className="relative bg-gray-950 rounded-3xl p-1 aspect-square flex items-center justify-center overflow-hidden shadow-2xl">
+                 {/* Corner markers */}
+                 <div className="absolute top-4 left-4 w-8 h-8 border-l-4 border-t-4 border-emerald-500 rounded-tl-lg z-10" />
+                 <div className="absolute top-4 right-4 w-8 h-8 border-r-4 border-t-4 border-emerald-500 rounded-tr-lg z-10" />
+                 <div className="absolute bottom-4 left-4 w-8 h-8 border-l-4 border-b-4 border-emerald-500 rounded-bl-lg z-10" />
+                 <div className="absolute bottom-4 right-4 w-8 h-8 border-r-4 border-b-4 border-emerald-500 rounded-br-lg z-10" />
 
-                {/* Center crosshair */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-16 h-16 border-2 border-emerald-500/30 rounded-lg" />
-                  <div className="absolute w-1 h-12 bg-emerald-500/50" />
-                  <div className="absolute w-12 h-1 bg-emerald-500/50" />
-                </div>
+                 {/* Center crosshair */}
+                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                   <div className="w-16 h-16 border-2 border-emerald-500/30 rounded-lg" />
+                   <div className="absolute w-1 h-12 bg-emerald-500/50" />
+                   <div className="absolute w-12 h-1 bg-emerald-500/50" />
+                 </div>
 
-                {/* Laser scanning line */}
-                <motion.div
-                  className="absolute w-4/5 h-0.5 bg-gradient-to-r from-transparent via-emerald-500 to-transparent shadow-lg shadow-emerald-500/50"
-                  animate={{ y: [-100, 100, -100] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                />
+                 {/* Video/Camera preview */}
+                 <div id="qr-reader-admin" className={`w-full h-full ${isCameraOpen ? '' : 'hidden'}`} />
 
-                {/* QR Icon placeholder */}
-                <QrCode className="h-24 w-24 text-gray-700 relative z-0" />
-              </div>
+                 {/* Placeholder when camera is off */}
+                 {!isCameraOpen && (
+                   <>
+                     <motion.div
+                       className="absolute w-4/5 h-0.5 bg-gradient-to-r from-transparent via-emerald-500 to-transparent shadow-lg shadow-emerald-500/50"
+                       animate={{ y: [-100, 100, -100] }}
+                       transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                     />
+                     <QrCode className="h-24 w-24 text-gray-700 relative z-0" />
+                   </>
+                 )}
 
-              <p className="text-center text-gray-600 mt-4">
-                Đưa mã QR trên vé điện tử của sinh viên vào khung hình
-              </p>
-            </div>
+                 {/* Camera on overlay */}
+                 {isCameraOpen && (
+                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                     <div className="w-16 h-16 flex items-center justify-center">
+                       <div className="w-full h-0.5 bg-emerald-500/50" />
+                       <div className="absolute w-0.5 h-full bg-emerald-500/50" />
+                       <div className="absolute w-3 h-3 border-2 border-emerald-500 rounded-full" />
+                     </div>
+                   </div>
+                 )}
+               </div>
+
+               <p className="text-center text-gray-600 mt-4">
+                 Đưa mã QR trên vé điện tử của sinh viên vào khung hình
+               </p>
+
+               {/* Camera Toggle Button */}
+               {!isCameraOpen ? (
+                 <Button
+                   onClick={startScanner}
+                   className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
+                 >
+                   <Camera className="h-4 w-4 mr-2" />
+                   Bật Camera
+                 </Button>
+               ) : (
+                 <Button
+                   onClick={stopScanner}
+                   variant="outline"
+                   className="w-full mt-4"
+                 >
+                   <X className="h-4 w-4 mr-2" />
+                   Tắt Camera
+                 </Button>
+               )}
+             </div>
 
             {/* Mock Scan Input */}
             <div className="max-w-md mx-auto bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
