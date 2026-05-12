@@ -73,55 +73,55 @@ export const EventRegistrations = () => {
     fetchInitialData();
   }, [eventId]);
 
-  const fetchInitialData = async () => {
-    if (!eventId) return;
-    setIsLoading(true);
-    
-    try {
-      // 1. Gọi API sự kiện
-      const eventRes = await eventsApi.getById(eventId);
-      const eventData = eventRes.data.data;
-      setEvent(eventData);
+    const fetchInitialData = async () => {
+      if (!eventId) return;
+      setIsLoading(true);
+      
+      try {
+        // 1. Gọi API sự kiện
+        const eventRes = await eventsApi.getById(eventId);
+        const eventData = eventRes.data.data;
+        setEvent(eventData);
 
-      // 2. Lấy page_id từ sự kiện (Lối tắt)
-      const currentPageId = eventData.page_id;
+        // 2. Lấy page_id từ sự kiện (Lối tắt)
+        const currentPageId = eventData.page_id;
 
-      if (!currentPageId) {
-        toast.error('Sự kiện này không thuộc Fanpage nào!');
+        if (!currentPageId) {
+          toast.error('Sự kiện này không thuộc Fanpage nào!');
+          setIsLoading(false);
+          return;
+        }
+
+        // 3. Gọi API lấy danh sách đăng ký
+        const regRes = await registrationsApi.getEventRegistrations(eventId, currentPageId);
+        
+        // ĐÃ SỬA: Bóc tách mảng dữ liệu an toàn
+        // Backend trả về: regRes.data = { success, message, data: { data: [...], meta: {...}, event: {...} } }
+        // Vậy mảng thực sự nằm ở: regRes.data.data.data
+        const rawPayload = regRes.data?.data;
+        const registrationArray = rawPayload?.data;
+
+        if (Array.isArray(registrationArray)) {
+          // Nếu bóc tách thành công một Mảng, tiến hành sắp xếp
+          const sortedReg = [...registrationArray].sort((a: Registration, b: Registration) =>
+            new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime()
+          );
+          setRegistrations(sortedReg);
+        } else {
+          // Nếu không có dữ liệu hoặc lỗi cấu trúc
+          setRegistrations([]);
+          console.warn('Lưu ý: Không có mảng dữ liệu trả về hợp lệ từ API.');
+        }
+        
+      } catch (err: any) {
+        // ĐÃ SỬA: Thêm console.error để dễ debug
+        console.error('Lỗi khi fetch dữ liệu registrations:', err);
+        toast.error(err.response?.data?.message || 'Không thể tải dữ liệu');
+        setRegistrations([]); // Reset mảng nếu lỗi để tránh crash UI
+      } finally {
         setIsLoading(false);
-        return;
       }
-
-      // 3. Gọi API lấy danh sách đăng ký
-      const regRes = await registrationsApi.getEventRegistrations(eventId, currentPageId);
-      
-      // ĐÃ SỬA: Bóc tách mảng dữ liệu an toàn
-      // Backend trả về: regRes.data = { success, message, data: { data: [...], meta: {...}, event: {...} } }
-      // Vậy mảng thực sự nằm ở: regRes.data.data.data
-      const rawPayload = regRes.data?.data;
-      const registrationArray = rawPayload?.data;
-
-      if (Array.isArray(registrationArray)) {
-        // Nếu bóc tách thành công một Mảng, tiến hành sắp xếp
-        const sortedReg = [...registrationArray].sort((a: Registration, b: Registration) =>
-          new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime()
-        );
-        setRegistrations(sortedReg);
-      } else {
-        // Nếu không có dữ liệu hoặc lỗi cấu trúc
-        setRegistrations([]);
-        console.warn('Lưu ý: Không có mảng dữ liệu trả về hợp lệ từ API.');
-      }
-      
-    } catch (err: any) {
-      // ĐÃ SỬA: Thêm console.error để dễ debug
-      console.error('Lỗi khi fetch dữ liệu registrations:', err);
-      toast.error(err.response?.data?.message || 'Không thể tải dữ liệu');
-      setRegistrations([]); // Reset mảng nếu lỗi để tránh crash UI
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
   // Filtered registrations
   const filteredRegistrations = registrations.filter(reg => {

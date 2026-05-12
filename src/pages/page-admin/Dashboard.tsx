@@ -49,26 +49,28 @@ export const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
-  const fetchDashboardData = async () => {
-    try {
-      setIsLoading(true);
+   const fetchDashboardData = async () => {
+     try {
+       setIsLoading(true);
 
-// 1. Get managed page from auth store
-        const { user } = useAuthStore.getState();
-        const managedPageId = user?.managed_pages?.[0]?.page_id;
-        if (!managedPageId) {
+ // 1. Get managed page from auth store
+          const { user } = useAuthStore.getState();
+          // Lấy ưu tiên: object page.id (nếu backend có include) -> sau đó đến page_id
+          const managedPageId = user?.managed_pages?.[0]?.page?.id || user?.managed_pages?.[0]?.page_id;
+         if (!managedPageId) {
+           console.warn('User không có quyền quản lý Fanpage nào!');
+           setIsLoading(false);
+           return;
+         }
+
+        // Fetch the managed page by ID to get the full object
+        const pageRes = await pagesApi.getById(managedPageId);
+        const managedPage = pageRes.data.data;
+        if (!managedPage) {
           setIsLoading(false);
           return;
         }
-
-       // Fetch the managed page by ID to get the full object
-       const pageRes = await pagesApi.getById(managedPageId);
-       const managedPage = pageRes.data.data;
-       if (!managedPage) {
-         setIsLoading(false);
-         return;
-       }
-       setPage(managedPage);
+        setPage(managedPage);
 
       // 2. Get events - handle both array and paginated response
       const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 100 });

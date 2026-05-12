@@ -65,8 +65,9 @@ const getRoleLabel = (role: string): string => {
 };
 
 export const MembersManagement = () => {
-   const { user } = useAuthStore();
-   const managedPageId = user?.page_id || user?.managed_page?.id;
+    const { user } = useAuthStore();
+    // Lấy ưu tiên: object page.id (nếu backend có include) -> sau đó đến page_id
+    const managedPageId = user?.managed_pages?.[0]?.page?.id || user?.managed_pages?.[0]?.page_id;
    const [activeTab, setActiveTab] = useState<'members' | 'requests'>('members');
    const [members, setMembers] = useState<PageMember[]>([]);
    const [requests, setRequests] = useState<PageJoinRequest[]>([]);

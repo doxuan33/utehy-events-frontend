@@ -54,35 +54,36 @@ export const PageSettings = () => {
     fetchPageData();
   }, []);
 
-  const fetchPageData = async () => {
-    try {
-      setIsLoading(true);
+   const fetchPageData = async () => {
+     try {
+       setIsLoading(true);
 
-      const res = await pagesApi.getAll();
-      const pagesArray: Page[] = Array.isArray(res.data.data) ? res.data.data : [];
+       const res = await pagesApi.getAll();
+       const pagesArray: Page[] = Array.isArray(res.data.data) ? res.data.data : [];
 
-      if (pagesArray.length === 0) {
-        setIsLoading(false);
-        return;
-      }
+       if (pagesArray.length === 0) {
+         setIsLoading(false);
+         return;
+       }
 
-const currentUser = useAuthStore.getState().user;
-       const currentPageId = currentUser?.managed_pages?.[0]?.page_id;
+ const currentUser = useAuthStore.getState().user;
+        // Lấy ưu tiên: object page.id (nếu backend có include) -> sau đó đến page_id
+        const currentPageId = currentUser?.managed_pages?.[0]?.page?.id || currentUser?.managed_pages?.[0]?.page_id;
 
-      const targetPage = currentPageId
-        ? pagesArray.find((p) => p.id === currentPageId) || pagesArray[0]
-        : pagesArray[0];
+       const targetPage = currentPageId
+         ? pagesArray.find((p) => p.id === currentPageId) || pagesArray[0]
+         : pagesArray[0];
 
-      if (targetPage) {
-        setPage(targetPage);
-        setFormData({
-          name: targetPage.name || '',
-          description: targetPage.description || '',
-          slug: targetPage.slug || '',
-          avatar_url: targetPage.avatar_url || '',
-          cover_url: targetPage.cover_url || '',
-        });
-      }
+       if (targetPage) {
+         setPage(targetPage);
+         setFormData({
+           name: targetPage.name || '',
+           description: targetPage.description || '',
+           slug: targetPage.slug || '',
+           avatar_url: targetPage.avatar_url || '',
+           cover_url: targetPage.cover_url || '',
+         });
+       }
     } catch (err) {
       console.error('Failed to fetch page data', err);
       toast.error('Không thể tải dữ liệu trang. Vui lòng thử lại sau.');

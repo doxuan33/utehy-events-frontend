@@ -270,34 +270,35 @@ export const EventManagement = () => {
 
    useEffect(() => { fetchInitialData(); }, []);
 
-   const fetchInitialData = async () => {
-     try {
-       setIsLoading(true);
-// Get managed page from auth store
-         const { user } = useAuthStore.getState();
-         const managedPageId = user?.managed_pages?.[0]?.page_id;
-       let managedPage = null;
-       if (managedPageId) {
-         const pageRes = await pagesApi.getById(managedPageId);
-         managedPage = pageRes.data.data;
-       }
-       if (!managedPage) {
-         setIsLoading(false);
-         return;
-       }
-       setPage(managedPage);
-       const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 50 });
-       const rawEvents = eventsRes.data.data.data || [];
-       const sortedEvents = rawEvents.sort((a: any, b: any) => new Date(b.created_at || b.start_time || b.id).getTime() - new Date(a.created_at || a.start_time || a.id).getTime());
-       setEvents(sortedEvents);
-       const catRes = await eventsApi.getCategories();
-       setCategories(catRes.data.data);
-     } catch (err) {
-       console.error('Failed to fetch data', err);
-     } finally {
-       setIsLoading(false);
-     }
-   };
+    const fetchInitialData = async () => {
+      try {
+        setIsLoading(true);
+ // Get managed page from auth store
+          const { user } = useAuthStore.getState();
+          // Lấy ưu tiên: object page.id (nếu backend có include) -> sau đó đến page_id
+          const managedPageId = user?.managed_pages?.[0]?.page?.id || user?.managed_pages?.[0]?.page_id;
+        let managedPage = null;
+        if (managedPageId) {
+          const pageRes = await pagesApi.getById(managedPageId);
+          managedPage = pageRes.data.data;
+        }
+        if (!managedPage) {
+          setIsLoading(false);
+          return;
+        }
+        setPage(managedPage);
+        const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 50 });
+        const rawEvents = eventsRes.data.data.data || [];
+        const sortedEvents = rawEvents.sort((a: any, b: any) => new Date(b.created_at || b.start_time || b.id).getTime() - new Date(a.created_at || a.start_time || a.id).getTime());
+        setEvents(sortedEvents);
+        const catRes = await eventsApi.getCategories();
+        setCategories(catRes.data.data);
+      } catch (err) {
+        console.error('Failed to fetch data', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
   const handleStartCheckin = async (eventId: string) => {
     try {
