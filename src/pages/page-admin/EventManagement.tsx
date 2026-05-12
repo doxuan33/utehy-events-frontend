@@ -268,28 +268,36 @@ export const EventManagement = () => {
    useEffect(() => { return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); }; }, [imagePreview]);
    useEffect(() => { if (!isModalOpen) { setImagePreview(prev => { if (prev) URL.revokeObjectURL(prev); return ''; }); setImageFile(null); setPosterImageUrl(''); } }, [isModalOpen]);
 
-  useEffect(() => { fetchInitialData(); }, []);
+   useEffect(() => { fetchInitialData(); }, []);
 
-  const fetchInitialData = async () => {
-    try {
-      setIsLoading(true);
-      const pagesRes = await pagesApi.getAll();
-      const managedPage = pagesRes.data.data?.[0];
-      if (managedPage) {
-        setPage(managedPage);
-        const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 50 });
-        const rawEvents = eventsRes.data.data.data || [];
-        const sortedEvents = rawEvents.sort((a: any, b: any) => new Date(b.created_at || b.start_time || b.id).getTime() - new Date(a.created_at || a.start_time || a.id).getTime());
-        setEvents(sortedEvents);
-      }
-      const catRes = await eventsApi.getCategories();
-      setCategories(catRes.data.data);
-    } catch (err) {
-      console.error('Failed to fetch data', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+   const fetchInitialData = async () => {
+     try {
+       setIsLoading(true);
+       // Get managed page from auth store
+       const { user } = useAuthStore();
+       const managedPageId = user?.page_id || user?.managed_page?.id;
+       let managedPage = null;
+       if (managedPageId) {
+         const pageRes = await pagesApi.getById(managedPageId);
+         managedPage = pageRes.data.data;
+       }
+       if (!managedPage) {
+         setIsLoading(false);
+         return;
+       }
+       setPage(managedPage);
+       const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 50 });
+       const rawEvents = eventsRes.data.data.data || [];
+       const sortedEvents = rawEvents.sort((a: any, b: any) => new Date(b.created_at || b.start_time || b.id).getTime() - new Date(a.created_at || a.start_time || a.id).getTime());
+       setEvents(sortedEvents);
+       const catRes = await eventsApi.getCategories();
+       setCategories(catRes.data.data);
+     } catch (err) {
+       console.error('Failed to fetch data', err);
+     } finally {
+       setIsLoading(false);
+     }
+   };
 
   const handleStartCheckin = async (eventId: string) => {
     try {

@@ -7,12 +7,18 @@ export interface GetNotificationsParams {
 }
 
 export const notificationsApi = {
-  getStreamUrl: () => 
+  getStreamUrl: () =>
     `${apiClient.defaults.baseURL}/notifications/stream`,
     
-  getAll: (params?: GetNotificationsParams) => 
+  getAll: (params?: GetNotificationsParams) =>
     apiClient.get('/notifications', { params }),
     
-  getUnreadCount: () => 
+  getUnreadCount: () =>
     apiClient.get('/notifications/unread-count'),
+
+  markAsRead: (id: string) =>
+    apiClient.post(`/notifications/${id}/mark-read`),
+
+  markAllAsRead: () =>
+    apiClient.post('/notifications/mark-all-read'),
 };

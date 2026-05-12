@@ -14,7 +14,7 @@ export interface UpdatePageParams extends Partial<CreatePageParams> {
 
 export interface AddMemberParams {
   user_id: string;
-  is_owner?: boolean;
+  role: string;
 }
 
 export interface PageMember {
@@ -90,14 +90,17 @@ export interface Page {
 }
 
 export const pagesApi = {
-  getAll: (params?: { search?: string; page?: number; limit?: number }) =>
-    apiClient.get<{ data: Page[] }>('/pages', { params }),
+   getAll: (params?: { search?: string; page?: number; limit?: number }) =>
+     apiClient.get<{ data: Page[] }>('/pages', { params }),
 
-  getFollowing: () =>
-    apiClient.get('/pages/following'),
+   getById: (id: string) =>
+     apiClient.get<{ data: Page }>(`/pages/${id}`),
 
-  getBySlug: (slug: string) =>
-    apiClient.get<{ data: PageWithMembers }>(`/pages/${slug}`),
+   getFollowing: () =>
+     apiClient.get('/pages/following'),
+
+   getBySlug: (slug: string) =>
+     apiClient.get<{ data: PageWithMembers }>(`/pages/${slug}`),
 
   create: (data: CreatePageParams) =>
     apiClient.post('/pages', data),

@@ -24,6 +24,7 @@ import { Button } from '@/components/common/Button';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { useAuthStore } from '@/store/auth.store';
 
 // Safe date formatter helper - prevents "Invalid time value" errors
 const safeFormatDate = (dateString: string | null | undefined, formatStr: string) => {
@@ -52,11 +53,22 @@ export const Dashboard = () => {
     try {
       setIsLoading(true);
 
-      // 1. Get managed page
-      const pagesRes = await pagesApi.getAll();
-      const managedPage = pagesRes.data.data?.[0];
-      if (!managedPage) return;
-      setPage(managedPage);
+       // 1. Get managed page from auth store
+       const { user } = useAuthStore();
+       const managedPageId = user?.page_id || user?.managed_page?.id;
+       if (!managedPageId) {
+         setIsLoading(false);
+         return;
+       }
+
+       // Fetch the managed page by ID to get the full object
+       const pageRes = await pagesApi.getById(managedPageId);
+       const managedPage = pageRes.data.data;
+       if (!managedPage) {
+         setIsLoading(false);
+         return;
+       }
+       setPage(managedPage);
 
       // 2. Get events - handle both array and paginated response
       const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 100 });

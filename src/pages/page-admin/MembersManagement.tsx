@@ -8,6 +8,7 @@ import {
 import { Avatar } from '@/components/common/Avatar';
 import { Button } from '@/components/common/Button';
 import { pagesApi } from '@/api/pages.api';
+import { useAuthStore } from '@/store/auth.store';
 
 // ── Types matching backend response ──────────────────────────
 interface MemberUser {
@@ -64,82 +65,66 @@ const getRoleLabel = (role: string): string => {
 };
 
 export const MembersManagement = () => {
-  const [activeTab, setActiveTab] = useState<'members' | 'requests'>('members');
-  const [members, setMembers] = useState<PageMember[]>([]);
-  const [requests, setRequests] = useState<PageJoinRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isActionLoading, setIsActionLoading] = useState(false);
-  const [pageId, setPageId] = useState<string | null>(null);
+   const { user } = useAuthStore();
+   const managedPageId = user?.page_id || user?.managed_page?.id;
+   const [activeTab, setActiveTab] = useState<'members' | 'requests'>('members');
+   const [members, setMembers] = useState<PageMember[]>([]);
+   const [requests, setRequests] = useState<PageJoinRequest[]>([]);
+   const [isLoading, setIsLoading] = useState(true);
+   const [isActionLoading, setIsActionLoading] = useState(false);
 
-  // States cho Bộ lọc
-  const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('ALL');
+   // States cho Bộ lọc
+   const [searchQuery, setSearchQuery] = useState('');
+   const [roleFilter, setRoleFilter] = useState('ALL');
 
-  // States cho Modal
-  const [memberToKick, setMemberToKick] = useState<PageMember | null>(null);
-  const [memberToRoleChange, setMemberToRoleChange] = useState<PageMember | null>(null);
+   // States cho Modal
+   const [memberToKick, setMemberToKick] = useState<PageMember | null>(null);
+   const [memberToRoleChange, setMemberToRoleChange] = useState<PageMember | null>(null);
 
-  // ── Lấy pageId hiện tại (trang CLB mà user quản lý) ───────
-  const fetchPageId = async () => {
-    try {
-      const res = await pagesApi.getAll();
-      const pages = res.data.data || [];
-      if (pages.length > 0) {
-        setPageId(pages[0].id);
-      }
-    } catch (err) {
-      console.error('Failed to fetch pages:', err);
-    }
-  };
+   // ── Nạp dữ liệu chính ────────────────────────────────────
+   const fetchData = async () => {
+       if (!managedPageId) {
+           setIsLoading(false);
+           return;
+       }
+       setIsLoading(true);
+       try {
+           const [membersRes, requestsRes] = await Promise.all([
+               pagesApi.getMembers(managedPageId),
+               pagesApi.getJoinRequests(managedPageId),
+           ]);
 
-  // ── Nạp dữ liệu chính ────────────────────────────────────
-const fetchData = async () => {
-    if (!pageId) return;
-    setIsLoading(true);
-    try {
-      const [membersRes, requestsRes] = await Promise.all([
-        pagesApi.getMembers(pageId),
-        pagesApi.getJoinRequests(pageId),
-      ]);
+           const membersData = membersRes.data.data || [];
+           const requestsData = requestsRes.data.data || [];
 
-      const membersData = membersRes.data.data || [];
-      const requestsData = requestsRes.data.data || [];
+           const sortedRequests = [...requestsData].sort(
+               (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+           );
 
-      const sortedRequests = [...requestsData].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+           setMembers(membersData);
+           setRequests(sortedRequests);
+       } catch (err: any) {
+           console.error('Failed to fetch members/requests:', err);
+           toast.error(err.response?.data?.message || 'Không thể tải dữ liệu');
+       } finally {
+           setIsLoading(false);
+       }
+   };
 
-      setMembers(membersData);
-      setRequests(sortedRequests);
-    } catch (err: any) {
-      console.error('Failed to fetch members/requests:', err);
-      toast.error(err.response?.data?.message || 'Không thể tải dữ liệu');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPageId();
-  }, []);
-
-  useEffect(() => {
-    if (pageId) {
-      fetchData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageId]);
+   useEffect(() => {
+       fetchData();
+   }, [managedPageId]);
 
   // ── XỬ LÝ OPTIMISTIC UI + GỌI API ────────────────────────
 
   // Duyệt yêu cầu gia nhập
 const handleApproveRequest = async (request: PageJoinRequest) => {
-    if (!pageId) return;
+    if (!managedPageId) return;
     setIsActionLoading(true);
     setRequests(prev => prev.filter(req => req.user_id !== request.user_id));
 
     try {
-      await pagesApi.approveJoinRequest(pageId, request.user_id);
+      await pagesApi.approveJoinRequest(managedPageId, request.user_id);
       toast.success(`Đã duyệt sinh viên ${request.user?.profile?.full_name || request.user_id} vào Câu lạc bộ!`);
       await fetchData();
     } catch (err: any) {
@@ -153,13 +138,13 @@ const handleApproveRequest = async (request: PageJoinRequest) => {
     }
   };
 
-  const handleRejectRequest = async (request: PageJoinRequest) => {
-    if (!pageId) return;
+const handleRejectRequest = async (request: PageJoinRequest) => {
+    if (!managedPageId) return;
     setIsActionLoading(true);
     setRequests(prev => prev.filter(req => req.user_id !== request.user_id));
 
     try {
-      await pagesApi.rejectJoinRequest(pageId, request.user_id);
+      await pagesApi.rejectJoinRequest(managedPageId, request.user_id);
       toast.warning('Đã từ chối yêu cầu gia nhập.');
     } catch (err: any) {
       console.error('Failed to reject request:', err);
@@ -172,15 +157,15 @@ const handleApproveRequest = async (request: PageJoinRequest) => {
     }
   };
 
-  const handleKickMember = async () => {
-    if (!memberToKick || !pageId) return;
+const handleKickMember = async () => {
+    if (!memberToKick || !managedPageId) return;
     setIsActionLoading(true);
     const kickedMember = memberToKick;
     setMembers(prev => prev.filter(m => m.user_id !== kickedMember.user_id));
     setMemberToKick(null);
 
     try {
-      await pagesApi.kickMember(pageId, kickedMember.user_id);
+      await pagesApi.kickMember(managedPageId, kickedMember.user_id);
       toast.success(`Đã xóa ${kickedMember.user?.profile?.full_name || kickedMember.user_id} khỏi Câu lạc bộ.`);
     } catch (err: any) {
       console.error('Failed to kick member:', err);
@@ -192,7 +177,7 @@ const handleApproveRequest = async (request: PageJoinRequest) => {
   };
 
   const handleChangeRole = async (newRole: 'CHUNHIEM' | 'PHOCHUNHIEM' | 'THANHVIEN') => {
-    if (!memberToRoleChange || !pageId) return;
+    if (!memberToRoleChange || !managedPageId) return;
     setIsActionLoading(true);
     const prevOwner = memberToRoleChange.is_owner;
     const prevRole = memberToRoleChange.user.role;
@@ -210,7 +195,7 @@ const handleApproveRequest = async (request: PageJoinRequest) => {
     setMemberToRoleChange(null);
 
     try {
-      await pagesApi.updateMemberRole(pageId, changedMember.user_id, newRole);
+      await pagesApi.updateMemberRole(managedPageId, changedMember.user_id, newRole);
       toast.success(`Đã cập nhật vai trò cho ${changedMember.user?.profile?.full_name || changedMember.user_id}.`);
     } catch (err: any) {
       console.error('Failed to change role:', err);

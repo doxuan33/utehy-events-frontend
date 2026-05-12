@@ -48,47 +48,54 @@ export const PostManagement = () => {
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
 
-  useEffect(() => {
-    fetchInitialData();
-    return () => {
-      previewUrls.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, []);
+   useEffect(() => {
+     fetchInitialData();
+     return () => {
+       previewUrls.forEach(url => URL.revokeObjectURL(url));
+     };
+   }, []);
 
-  useEffect(() => {
-    if (!isModalOpen) {
-      setPreviewUrls(prev => {
-        prev.forEach(url => URL.revokeObjectURL(url));
-        return [];
-      });
-      setSelectedFiles([]);
-      setExistingImageUrls([]);
-    }
-  }, [isModalOpen]);
+   useEffect(() => {
+     if (!isModalOpen) {
+       setPreviewUrls(prev => {
+         prev.forEach(url => URL.revokeObjectURL(url));
+         return [];
+       });
+       setSelectedFiles([]);
+       setExistingImageUrls([]);
+     }
+   }, [isModalOpen]);
 
-  const fetchInitialData = async () => {
-    try {
-      setIsLoading(true);
-      const pagesRes = await pagesApi.getAll();
-      const managedPage = pagesRes.data.data?.[0];
-
-      if (managedPage) {
-        setPage(managedPage);
-        const postsRes = await postsApi.getNewsfeed({ page_id: managedPage.id, limit: 50 });
-        const rawPosts = postsRes.data.data.data || [];
-        const sortedPosts = rawPosts.sort((a: any, b: any) => {
-          const dateA = new Date(a.created_at || a.id).getTime();
-          const dateB = new Date(b.created_at || b.id).getTime();
-          return dateB - dateA;
-        });
-        setPosts(sortedPosts);
-      }
-    } catch (err) {
-      console.error('Failed to fetch data', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+   const fetchInitialData = async () => {
+     try {
+       setIsLoading(true);
+       // Get managed page from auth store
+       const { user } = useAuthStore();
+       const managedPageId = user?.page_id || user?.managed_page?.id;
+       let managedPage = null;
+       if (managedPageId) {
+         const pageRes = await pagesApi.getById(managedPageId);
+         managedPage = pageRes.data.data;
+       }
+       if (!managedPage) {
+         setIsLoading(false);
+         return;
+       }
+       setPage(managedPage);
+       const postsRes = await postsApi.getNewsfeed({ page_id: managedPage.id, limit: 50 });
+       const rawPosts = postsRes.data.data.data || [];
+       const sortedPosts = rawPosts.sort((a: any, b: any) => {
+         const dateA = new Date(a.created_at || a.id).getTime();
+         const dateB = new Date(b.created_at || b.id).getTime();
+         return dateB - dateA;
+       });
+       setPosts(sortedPosts);
+     } catch (err) {
+       console.error('Failed to fetch data', err);
+     } finally {
+       setIsLoading(false);
+     }
+   };
 
   const handleOpenCreateModal = () => {
     setEditingPost(null);
