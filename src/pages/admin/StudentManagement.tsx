@@ -81,14 +81,15 @@ export const StudentManagement = () => {
       return;
     }
 
-    try {
-      const rawData = await readExcelFile(file);
-      const mappedStudents = mapStudentData(rawData);
-      setParsedStudents(mappedStudents);
-      setSelectedFile(file);
-      setImportErrors([]);
-      setIsImportModalOpen(true);
-    } catch (err: any) {
+try {
+       const rawData = await readExcelFile(file);
+       const mappedStudents = mapStudentData(rawData);
+       if (mappedStudents.length === 0) return;
+       setParsedStudents(mappedStudents);
+       setSelectedFile(file);
+       setImportErrors([]);
+       setIsImportModalOpen(true);
+     } catch (err: any) {
       console.error('Failed to parse Excel file', err);
       toast.error('Không thể đọc file Excel: ' + (err.message || 'Lỗi không xác định'));
     }
@@ -99,7 +100,7 @@ export const StudentManagement = () => {
     }
   };
 
-  const readExcelFile = (file: File): Promise<any[]> => {
+const readExcelFile = (file: File): Promise<any[]> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
 
@@ -108,31 +109,11 @@ export const StudentManagement = () => {
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'binary' });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          
-          // Read as array of arrays (raw rows)
-          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[];
-          
-          if (jsonData.length < 2) {
-            reject(new Error('File không có dữ liệu hoặc thiếu header'));
-            return;
-          }
 
-          // First row is header
-          const headers = jsonData[0].map((h: any) => String(h || '').trim().toLowerCase());
-          const students: any[] = [];
+          // Read as array of objects with automatic header detection
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet) as any[];
 
-          for (let i = 1; i < jsonData.length; i++) {
-            const row = jsonData[i];
-            const student: Record<string, any> = {};
-
-            headers.forEach((header: string, index: number) => {
-              student[header] = row[index];
-            });
-
-            students.push(student);
-          }
-
-          resolve(students);
+          resolve(jsonData);
         } catch (err) {
           reject(err);
         }
@@ -143,29 +124,38 @@ export const StudentManagement = () => {
     });
   };
 
-  const mapStudentData = (rawData: any[]): any[] => {
-    const mapped = rawData.map((row) => {
-      // Xử lý số điện thoại: convert sang string và bù số 0 nếu bị Excel cắt mất
-      let phoneStr = row['SoDienThoai'] ? String(row['SoDienThoai']).trim() : '';
-      if (phoneStr && phoneStr.length === 9 && !phoneStr.startsWith('0')) {
-        phoneStr = '0' + phoneStr;
-      }
+   const mapStudentData = (rawData: any[]): any[] => {
+     const mappedStudents = rawData.map((row: any) => {
+       // Hàm tự động quét key thông minh, chống lỗi khoảng trắng
+       const getVal = (keys: string[]) => {
+         const foundKey = Object.keys(row).find(k => keys.includes(k.trim().toLowerCase()));
+         return foundKey ? row[foundKey] : '';
+       };
 
-      return {
-        student_id: row['MSSV'] ? String(row['MSSV']).trim() : '',
-        full_name: row['HoTen'] ? String(row['HoTen']).trim() : '',
-        class_name: row['Lop'] ? String(row['Lop']).trim() : '',
-        faculty: row['Khoa'] ? String(row['Khoa']).trim() : '',
-        phone: phoneStr,
-        email: row['Email'] ? String(row['Email']).trim() : ''
-      };
-    });
+       let phoneStr = String(getVal(['sodienthoai', 'số điện thoại', 'phone', 'so dien thoai']) || '').trim();
+       if (phoneStr && phoneStr.length === 9 && !phoneStr.startsWith('0')) {
+         phoneStr = '0' + phoneStr; // Tự động bù số 0
+       }
 
-    // Filter out rows with missing required fields
-    const filtered = mapped.filter(s => s.student_id && s.full_name);
-    console.log('>>> Dữ liệu đã chuẩn hóa gửi lên API:', filtered);
-    return filtered;
-  };
+       return {
+         student_id: String(getVal(['mssv', 'mã sv', 'student_id']) || '').trim(),
+         full_name: String(getVal(['hoten', 'họ tên', 'họ và tên', 'full_name']) || '').trim(),
+         class_name: String(getVal(['lop', 'lớp', 'class_name']) || '').trim(),
+         faculty: String(getVal(['khoa', 'faculty']) || '').trim(),
+         phone: phoneStr,
+         email: String(getVal(['email']) || '').trim()
+       };
+     }).filter(s => s.student_id && s.full_name); // Lọc bỏ các dòng trắng
+
+     // Chỉ báo lỗi nếu TẤT CẢ các dòng đều không quét được dữ liệu
+     if (mappedStudents.length === 0) {
+       toast.error('Lỗi file: Không tìm thấy dữ liệu sinh viên hợp lệ. Đảm bảo file có ít nhất cột MSSV và Họ Tên.');
+       return [];
+     }
+
+     console.log('>>> Dữ liệu đã làm sạch:', mappedStudents);
+     return mappedStudents;
+   };
 
   const faculties = ['all', ...new Set(students.map(s => s.profile?.faculty).filter(Boolean))];
   const classes = ['all', ...new Set(students.map(s => s.profile?.class_name).filter(Boolean))];
