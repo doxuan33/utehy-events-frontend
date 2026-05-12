@@ -18,7 +18,11 @@ import {
   GraduationCap,
   History,
   CheckCircle2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid
 } from 'lucide-react';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -40,6 +44,10 @@ export const StudentManagement = () => {
   const [selectedFaculty, setSelectedFaculty] = useState('all');
   const [selectedClass, setSelectedClass] = useState('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activeViewClass, setActiveViewClass] = useState<string | null>(null);
+  const itemsPerPage = 8;
 
   useEffect(() => {
     fetchStudents();
@@ -67,7 +75,6 @@ export const StudentManagement = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const isValidType = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv');
 
     if (!isValidType) {
@@ -75,7 +82,6 @@ export const StudentManagement = () => {
       return;
     }
 
-    // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('File quá lớn. Giới hạn 5MB');
       return;
@@ -94,7 +100,6 @@ try {
       toast.error('Không thể đọc file Excel: ' + (err.message || 'Lỗi không xác định'));
     }
 
-    // Reset input value so same file can be selected again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -109,10 +114,7 @@ const readExcelFile = (file: File): Promise<any[]> => {
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'binary' });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-
-          // Read as array of objects with automatic header detection
           const jsonData = XLSX.utils.sheet_to_json(firstSheet) as any[];
-
           resolve(jsonData);
         } catch (err) {
           reject(err);
@@ -126,7 +128,6 @@ const readExcelFile = (file: File): Promise<any[]> => {
 
    const mapStudentData = (rawData: any[]): any[] => {
      const mappedStudents = rawData.map((row: any) => {
-       // Hàm tự động quét key thông minh, chống lỗi khoảng trắng
        const getVal = (keys: string[]) => {
          const foundKey = Object.keys(row).find(k => keys.includes(k.trim().toLowerCase()));
          return foundKey ? row[foundKey] : '';
@@ -134,7 +135,7 @@ const readExcelFile = (file: File): Promise<any[]> => {
 
        let phoneStr = String(getVal(['sodienthoai', 'số điện thoại', 'phone', 'so dien thoai']) || '').trim();
        if (phoneStr && phoneStr.length === 9 && !phoneStr.startsWith('0')) {
-         phoneStr = '0' + phoneStr; // Tự động bù số 0
+         phoneStr = '0' + phoneStr; 
        }
 
        return {
@@ -145,22 +146,20 @@ const readExcelFile = (file: File): Promise<any[]> => {
          phone: phoneStr,
          email: String(getVal(['email']) || '').trim()
        };
-     }).filter(s => s.student_id && s.full_name); // Lọc bỏ các dòng trắng
+     }).filter((s: any) => s.student_id && s.full_name); 
 
-     // Chỉ báo lỗi nếu TẤT CẢ các dòng đều không quét được dữ liệu
      if (mappedStudents.length === 0) {
        toast.error('Lỗi file: Không tìm thấy dữ liệu sinh viên hợp lệ. Đảm bảo file có ít nhất cột MSSV và Họ Tên.');
        return [];
      }
 
-     console.log('>>> Dữ liệu đã làm sạch:', mappedStudents);
      return mappedStudents;
    };
 
-  const faculties = ['all', ...new Set(students.map(s => s.profile?.faculty).filter(Boolean))];
-  const classes = ['all', ...new Set(students.map(s => s.profile?.class_name).filter(Boolean))];
+  const faculties = ['all', ...new Set(students.map((s: any) => s.profile?.faculty).filter(Boolean))];
+  const classes = ['all', ...new Set(students.map((s: any) => s.profile?.class_name).filter(Boolean))];
 
-  const filteredStudents = students.filter(student => {
+  const filteredStudents = students.filter((student: any) => {
     const matchesFaculty = selectedFaculty === 'all' || student.profile?.faculty === selectedFaculty;
     const matchesClass = selectedClass === 'all' || student.profile?.class_name === selectedClass;
     return matchesFaculty && matchesClass;
@@ -174,7 +173,7 @@ const readExcelFile = (file: File): Promise<any[]> => {
 
     try {
       const response = await usersApi.importStudents(
-        parsedStudents.map(s => ({
+        parsedStudents.map((s: any) => ({
           student_id: s.student_id,
           full_name: s.full_name,
           class_name: s.class_name || undefined,
@@ -226,40 +225,19 @@ const readExcelFile = (file: File): Promise<any[]> => {
 
    const handleDownloadTemplate = () => {
      try {
-       // Create workbook and worksheet
        const wb = XLSX.utils.book_new();
-       
-       // Define column headers matching the frontend mapping
        const headers = ['MSSV', 'HoTen', 'Lop', 'Khoa', 'SoDienThoai', 'Email'];
-       
-       // Sample data rows
        const sampleData = [
          ['10125001', 'Nguyễn Văn An', 'TK25.1', 'Công nghệ Thông tin', '0901234001', 'an@student.utehy.edu.vn'],
          ['10125002', 'Trần Thị Bình', 'TK25.2', 'Quản trị Kinh doanh', '0901234002', 'binh@student.utehy.edu.vn'],
        ];
-       
-       // Combine headers and sample data
        const wsData = [headers, ...sampleData];
-       
-       // Create worksheet from data
        const ws = XLSX.utils.aoa_to_sheet(wsData);
-       
-       // Set column widths for readability
        ws['!cols'] = [
-         { wch: 12 },  // MSSV
-         { wch: 25 },  // HoTen
-         { wch: 15 },  // Lop
-         { wch: 20 },  // Khoa
-         { wch: 15 },  // SoDienThoai
-         { wch: 30 },  // Email
+         { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 30 },
        ];
-       
-       // Add worksheet to workbook
        XLSX.utils.book_append_sheet(wb, ws, 'SinhVien');
-       
-       // Save the file
        XLSX.writeFile(wb, 'Template_Import_SinhVien.xlsx');
-       
        toast.success('Đã tải xuống file mẫu');
      } catch (err) {
        console.error('Failed to download template', err);
@@ -283,7 +261,7 @@ const readExcelFile = (file: File): Promise<any[]> => {
          setIsActionLoading(true);
          const res = await usersApi.toggleActive(student.id);
          toast.success(res.data?.message || `Đã ${action} tài khoản`);
-         setStudents(students.map(s => s.id === student.id ? { ...s, is_active: !s.is_active } : s));
+         setStudents(students.map((s: any) => s.id === student.id ? { ...s, is_active: !s.is_active } : s));
          if (selectedStudent?.id === student.id) {
            setSelectedStudent({ ...selectedStudent, is_active: !student.is_active });
          }
@@ -324,29 +302,57 @@ const readExcelFile = (file: File): Promise<any[]> => {
     }
   };
 
+  // Nhóm học sinh theo lớp
+  const groupedByClass = filteredStudents.reduce((acc: Record<string, any[]>, student: any) => {
+    const className = student.profile?.class_name || 'Chưa xếp lớp';
+    if (!acc[className]) acc[className] = [];
+    acc[className].push(student);
+    return acc;
+  }, {});
+
+  const classNames = Object.keys(groupedByClass).sort();
+  const totalPages = Math.max(1, Math.ceil(classNames.length / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  
+  const currentClasses = classNames.slice(
+    (safeCurrentPage - 1) * itemsPerPage, 
+    safeCurrentPage * itemsPerPage
+  );
+
+  const studentsInView = activeViewClass ? groupedByClass[activeViewClass] : [];
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50/50 via-white to-green-50/30 p-4 md:p-8 space-y-8 rounded-[40px]">
+      
+      {/* Header Section */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-gray-900">Quản lý Sinh viên</h1>
-          <p className="text-gray-500 font-medium">Tra cứu hồ sơ, theo dõi hoạt động và quản lý tài khoản sinh viên.</p>
+          <h1 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-teal-600 tracking-tight">
+            Quản lý Sinh viên
+          </h1>
+          <p className="text-green-700/70 font-medium mt-2">
+            Tra cứu hồ sơ, theo dõi hoạt động và quản lý tài khoản sinh viên.
+          </p>
         </div>
-        <div className="flex items-center space-x-3">
+        
+        <div className="flex flex-wrap items-center gap-3">
           <Button 
             variant="outline" 
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-2xl px-6 py-4 flex items-center space-x-2 border-blue-100 text-blue-600 hover:bg-blue-50"
+            className="rounded-2xl px-6 py-3.5 flex items-center space-x-2 border-green-200 text-green-700 bg-white hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
           >
             <Upload className="h-5 w-5" />
             <span className="font-bold">Nhập từ Excel</span>
           </Button>
+          
           <button
             onClick={handleDownloadTemplate}
-            className="text-blue-600 hover:text-blue-700 hover:underline text-sm font-medium flex items-center space-x-1 px-2"
+            className="text-teal-600 hover:text-teal-700 hover:underline text-sm font-semibold flex items-center space-x-1 px-2 transition-colors"
           >
             <Download className="h-4 w-4" />
             <span>Tải file mẫu tại đây</span>
           </button>
+          
           <Button 
             variant="outline"
             onClick={async () => {
@@ -370,65 +376,66 @@ const readExcelFile = (file: File): Promise<any[]> => {
                 alert('Lỗi xuất file');
               }
             }}
-            className="rounded-2xl px-6 py-4 flex items-center space-x-2 border-green-100 text-green-600 hover:bg-green-50"
+            className="rounded-2xl px-6 py-3.5 flex items-center space-x-2 border-teal-200 text-teal-700 bg-white hover:bg-teal-50 transition-all shadow-sm"
           >
             <Download className="h-5 w-5" />
             <span className="font-bold">Xuất báo cáo</span>
           </Button>
-          <Button className="rounded-2xl px-8 py-4 flex items-center space-x-2 shadow-xl shadow-blue-500/20">
+          
+          <Button className="rounded-2xl px-8 py-3.5 flex items-center space-x-2 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-bold shadow-lg shadow-green-500/30 transition-all duration-300 transform hover:-translate-y-0.5 border-none">
             <UserPlus className="h-5 w-5" />
-            <span className="font-bold">Thêm sinh viên</span>
+            <span>Thêm sinh viên</span>
           </Button>
         </div>
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 space-y-4">
+      <div className="bg-white p-6 rounded-[32px] shadow-sm hover:shadow-md transition-shadow border border-green-100 space-y-4">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-green-400" />
             <input
               type="text"
               placeholder="Tìm kiếm theo tên, MSSV hoặc email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && fetchStudents()}
-              className="w-full pl-14 pr-6 py-4 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+              className="w-full pl-14 pr-6 py-4 bg-green-50/30 border border-green-100 rounded-2xl text-sm font-medium text-green-900 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none"
             />
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100">
-              <span className="text-xs font-black text-gray-400 uppercase">Khoa:</span>
+            <div className="flex items-center space-x-2 bg-green-50/50 px-4 py-2.5 rounded-2xl border border-green-100 hover:border-green-300 transition-colors">
+              <span className="text-xs font-black text-green-600 uppercase tracking-wider">Khoa:</span>
               <select 
                 value={selectedFaculty}
                 onChange={(e) => setSelectedFaculty(e.target.value)}
-                className="bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer min-w-[120px]"
+                className="bg-transparent border-none text-sm font-bold text-green-800 focus:ring-0 cursor-pointer min-w-[120px] outline-none"
               >
                 <option value="all">Tất cả khoa</option>
-                {faculties.filter(f => f !== 'all').map(f => (
-                  <option key={f} value={f}>{f}</option>
+                {faculties.filter((f: any) => f !== 'all').map((f: any) => (
+                  <option key={f as string} value={f as string}>{f as string}</option>
                 ))}
               </select>
             </div>
 
-            <div className="flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100">
-              <span className="text-xs font-black text-gray-400 uppercase">Lớp:</span>
+            <div className="flex items-center space-x-2 bg-green-50/50 px-4 py-2.5 rounded-2xl border border-green-100 hover:border-green-300 transition-colors">
+              <span className="text-xs font-black text-green-600 uppercase tracking-wider">Lớp:</span>
               <select 
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                className="bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer min-w-[120px]"
+                className="bg-transparent border-none text-sm font-bold text-green-800 focus:ring-0 cursor-pointer min-w-[120px] outline-none"
               >
                 <option value="all">Tất cả lớp</option>
-                {classes.filter(c => c !== 'all').map(c => (
-                  <option key={c} value={c}>{c}</option>
+                {classes.filter((c: any) => c !== 'all').map((c: any) => (
+                  <option key={c as string} value={c as string}>{c as string}</option>
                 ))}
               </select>
             </div>
 
             <Button 
               onClick={fetchStudents}
-              className="rounded-2xl px-6 py-4"
+              className="rounded-2xl px-6 py-3.5 bg-green-100 text-green-800 hover:bg-green-200 font-bold border-none transition-colors"
             >
               Lọc dữ liệu
             </Button>
@@ -436,97 +443,199 @@ const readExcelFile = (file: File): Promise<any[]> => {
         </div>
       </div>
 
-      {/* Students Table */}
-      <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50/50 border-b border-gray-100">
-                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">MSSV</th>
-                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Họ Tên</th>
-                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Lớp</th>
-                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Email</th>
-                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Trạng thái</th>
-                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Hành động</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-20 text-center">
-                    <Loader2 className="h-10 w-10 animate-spin text-blue-600 mx-auto" />
-                  </td>
-                </tr>
-              ) : filteredStudents.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-20 text-center text-gray-400 italic">
-                    Không tìm thấy sinh viên nào.
-                  </td>
-                </tr>
-              ) : (
-                filteredStudents.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="px-4 py-4">
-                      <p className="text-sm font-mono font-bold text-gray-700">{student.profile?.student_id || 'N/A'}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-black text-[10px] border border-blue-100 shadow-sm flex-shrink-0">
-                          {student.profile?.avatar_url ? (
-                            <img src={student.profile.avatar_url} className="w-full h-full object-cover rounded-lg" referrerPolicy="no-referrer" />
-                          ) : (student.profile?.full_name?.charAt(0) || '?')}
-                        </div>
-                        <p className="text-sm font-black text-gray-900 group-hover:text-blue-600 transition-colors truncate max-w-[120px]" title={student.profile?.full_name || ''}>
-                          {student.profile?.full_name || 'Chưa cập nhật'}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="text-sm font-bold text-gray-700">{student.profile?.class_name || 'N/A'}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="text-sm text-gray-600 truncate max-w-[180px]" title={student.email}>
-                        {student.email}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4">
-                      {student.is_active ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-green-50 text-green-600 border border-green-100 uppercase tracking-wider">
-                          Hoạt động
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-red-50 text-red-600 border border-red-100 uppercase tracking-wider">
-                          Đã khóa
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end space-x-1">
-                        <button 
-                          onClick={() => handleViewDetails(student)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                          title="Xem hồ sơ"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleToggleActive(student)}
-                          className={`p-1.5 rounded-lg transition-all ${student.is_active ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}
-                          title={student.is_active ? 'Khóa tài khoản' : 'Mở khóa'}
-                        >
-                          {student.is_active ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Main Content Area */}
+      <AnimatePresence mode="wait">
+        {isLoading ? (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="flex justify-center items-center py-20"
+          >
+            <Loader2 className="h-12 w-12 animate-spin text-green-500" />
+          </motion.div>
+        ) : !activeViewClass ? (
+          /* ==========================================
+             VIEW 1: DANH SÁCH LỚP HỌC (GRID + PHÂN TRANG)
+             ========================================== */
+          <motion.div
+            key="class-view"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center justify-between px-2">
+              <h2 className="text-xl font-bold text-green-900 flex items-center">
+                <LayoutGrid className="mr-2 h-6 w-6 text-green-500" /> 
+                Danh sách Lớp học ({classNames.length})
+              </h2>
+            </div>
 
-      {/* Student Details Modal */}
+            {classNames.length === 0 ? (
+              <div className="bg-white p-12 rounded-[32px] border border-green-100 text-center shadow-sm">
+                <Users className="h-16 w-16 text-green-200 mx-auto mb-4" />
+                <p className="text-green-600 font-medium">Không tìm thấy dữ liệu phù hợp.</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {currentClasses.map((cls: string) => (
+                    <div 
+                      key={cls}
+                      onClick={() => setActiveViewClass(cls)}
+                      className="group bg-white rounded-3xl p-6 shadow-sm hover:shadow-xl border border-green-100 hover:border-green-300 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden"
+                    >
+                      <div className="absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br from-green-50 to-teal-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+                      
+                      <div className="relative z-10">
+                        <div className="w-12 h-12 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-green-500 group-hover:text-white transition-colors">
+                          <GraduationCap className="h-6 w-6" />
+                        </div>
+                        <h3 className="text-xl font-black text-gray-800 group-hover:text-green-800 transition-colors">
+                          {cls}
+                        </h3>
+                        <div className="mt-2 flex items-center text-sm font-semibold text-green-600/70">
+                          <Users className="h-4 w-4 mr-1.5" />
+                          {groupedByClass[cls].length} Sinh viên
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center space-x-4 pt-6">
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={safeCurrentPage === 1}
+                      className="p-2 rounded-xl bg-white border border-green-100 text-green-600 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <span className="text-sm font-bold text-green-800 bg-white px-4 py-2 rounded-xl border border-green-100 shadow-sm">
+                      Trang {safeCurrentPage} / {totalPages}
+                    </span>
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={safeCurrentPage === totalPages}
+                      className="p-2 rounded-xl bg-white border border-green-100 text-green-600 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </motion.div>
+        ) : (
+          /* ==========================================
+             VIEW 2: CHI TIẾT DANH SÁCH SINH VIÊN TRONG LỚP
+             ========================================== */
+          <motion.div
+            key="student-view"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center justify-between bg-white p-4 rounded-3xl shadow-sm border border-green-100">
+              <button 
+                onClick={() => setActiveViewClass(null)}
+                className="flex items-center text-green-600 hover:text-green-800 font-bold px-4 py-2 rounded-xl hover:bg-green-50 transition-colors"
+              >
+                <ChevronLeft className="h-5 w-5 mr-1" />
+                Quay lại danh sách lớp
+              </button>
+              <div className="flex items-center pr-4">
+                <span className="text-gray-500 font-medium mr-2">Lớp:</span>
+                <span className="text-lg font-black text-green-800 px-3 py-1 bg-green-50 rounded-lg border border-green-100">
+                  {activeViewClass}
+                </span>
+                <span className="ml-4 text-sm font-bold text-teal-600">({studentsInView.length} Sinh viên)</span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[32px] shadow-sm border border-green-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-green-50/80 to-teal-50/80 border-b border-green-100/50">
+                      <th className="px-6 py-5 text-xs font-black text-green-800 uppercase tracking-widest">MSSV</th>
+                      <th className="px-6 py-5 text-xs font-black text-green-800 uppercase tracking-widest">Họ Tên</th>
+                      <th className="px-6 py-5 text-xs font-black text-green-800 uppercase tracking-widest">Email</th>
+                      <th className="px-6 py-5 text-xs font-black text-green-800 uppercase tracking-widest">Trạng thái</th>
+                      <th className="px-6 py-5 text-xs font-black text-green-800 uppercase tracking-widest text-right">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-green-50">
+                    {studentsInView.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-20 text-center text-green-600/60 font-medium italic">
+                          Không có sinh viên nào trong lớp này.
+                        </td>
+                      </tr>
+                    ) : (
+                      studentsInView.map((student: any) => (
+                        <tr key={student.id} className="hover:bg-green-50/40 transition-colors group">
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-mono font-bold text-gray-700">{student.profile?.student_id || 'N/A'}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center space-x-4">
+                              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-teal-100 flex items-center justify-center text-teal-700 font-black text-sm border border-white shadow-sm flex-shrink-0">
+                                {student.profile?.avatar_url ? (
+                                  <img src={student.profile.avatar_url} className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+                                ) : (student.profile?.full_name?.charAt(0) || '?')}
+                              </div>
+                              <p className="text-sm font-bold text-gray-800 group-hover:text-green-600 transition-colors truncate max-w-[200px]" title={student.profile?.full_name || ''}>
+                                {student.profile?.full_name || 'Chưa cập nhật'}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm text-gray-600 font-medium truncate max-w-[220px]" title={student.email}>
+                              {student.email}
+                            </p>
+                          </td>
+                          <td className="px-6 py-4">
+                            {student.is_active ? (
+                              <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black bg-green-50 text-green-600 border border-green-200 uppercase tracking-wider shadow-sm">
+                                Hoạt động
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black bg-red-50 text-red-600 border border-red-200 uppercase tracking-wider shadow-sm">
+                                Đã khóa
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end space-x-2">
+                              <button 
+                                onClick={() => handleViewDetails(student)}
+                                className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all shadow-sm border border-transparent hover:border-teal-100"
+                                title="Xem hồ sơ"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleToggleActive(student)}
+                                className={`p-2 rounded-xl transition-all shadow-sm border border-transparent ${student.is_active ? 'text-orange-500 hover:bg-orange-50 hover:border-orange-100' : 'text-green-600 hover:bg-green-50 hover:border-green-100'}`}
+                                title={student.is_active ? 'Khóa tài khoản' : 'Mở khóa'}
+                              >
+                                {student.is_active ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isDetailModalOpen && selectedStudent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -538,110 +647,106 @@ const readExcelFile = (file: File): Promise<any[]> => {
               className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 40 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 40 }}
-              className="relative w-full max-w-5xl bg-white rounded-[48px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-5xl bg-white rounded-[40px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-green-100"
             >
-              {/* Header */}
-              <div className="p-8 border-b border-gray-50 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center space-x-5">
-                  <div className="h-20 w-20 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-3xl border-4 border-white shadow-lg">
+              <div className="p-8 bg-gradient-to-r from-green-50/50 to-white border-b border-green-50 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center space-x-6">
+                  <div className="h-24 w-24 rounded-[32px] bg-gradient-to-br from-green-100 to-teal-100 flex items-center justify-center text-teal-600 font-black text-4xl border-4 border-white shadow-lg">
                     {selectedStudent.avatar_url ? (
-                      <img src={selectedStudent.avatar_url} className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
+                      <img src={selectedStudent.avatar_url} className="w-full h-full object-cover rounded-[28px]" referrerPolicy="no-referrer" />
                     ) : (selectedStudent.full_name?.charAt(0) || '?')}
                   </div>
                   <div>
-                    <h2 className="text-3xl font-black text-gray-900">{selectedStudent.full_name}</h2>
-                    <p className="text-sm font-bold text-gray-400">MSSV: {selectedStudent.student_id}</p>
-                    <p className="text-xs font-bold text-gray-400 mt-1">
+                    <h2 className="text-3xl font-black text-gray-800">{selectedStudent.full_name}</h2>
+                    <p className="text-sm font-bold text-gray-500 mt-1">MSSV: <span className="text-green-700">{selectedStudent.student_id}</span></p>
+                    <p className="text-xs font-bold mt-2 inline-flex items-center px-3 py-1 rounded-lg bg-white border shadow-sm">
                       {selectedStudent.is_active ? (
-                        <span className="text-green-600">Hoạt động</span>
+                        <span className="text-green-600 flex items-center"><CheckCircle2 className="w-3 h-3 mr-1"/> Hoạt động</span>
                       ) : (
-                        <span className="text-red-600">Đã khóa</span>
+                        <span className="text-red-600 flex items-center"><Lock className="w-3 h-3 mr-1"/> Đã khóa</span>
                       )}
                     </p>
                   </div>
                 </div>
-                <button onClick={() => setIsDetailModalOpen(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-colors">
-                  <X className="h-6 w-6 text-gray-400" />
+                <button onClick={() => setIsDetailModalOpen(false)} className="p-3 bg-white border border-gray-100 hover:bg-red-50 hover:text-red-500 rounded-2xl transition-colors shadow-sm">
+                  <X className="h-6 w-6" />
                 </button>
               </div>
 
-              {/* Body */}
-              <div className="p-8 overflow-y-auto flex-1 space-y-8">
-                {/* Part 1 - Personal Info (Grid 2 columns) */}
+              <div className="p-8 overflow-y-auto flex-1 space-y-8 bg-gray-50/30">
                 <div>
-                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center">
+                  <h3 className="text-sm font-black text-green-700 uppercase tracking-widest mb-4 flex items-center">
                     <GraduationCap className="h-5 w-5 mr-2" />
                     Thông tin cá nhân
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-2xl">
-                      <p className="text-xs font-black text-gray-400 uppercase">Lớp học</p>
-                      <p className="text-base font-bold text-gray-900">{selectedStudent.class_name || 'N/A'}</p>
+                    <div className="p-5 bg-white border border-green-50 rounded-3xl shadow-sm">
+                      <p className="text-xs font-black text-green-400 uppercase tracking-wider">Lớp học</p>
+                      <p className="text-lg font-bold text-gray-800 mt-1">{selectedStudent.class_name || 'N/A'}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl">
-                      <p className="text-xs font-black text-gray-400 uppercase">Khoa</p>
-                      <p className="text-base font-bold text-gray-900">{selectedStudent.faculty || 'N/A'}</p>
+                    <div className="p-5 bg-white border border-green-50 rounded-3xl shadow-sm">
+                      <p className="text-xs font-black text-green-400 uppercase tracking-wider">Khoa</p>
+                      <p className="text-lg font-bold text-gray-800 mt-1">{selectedStudent.faculty || 'N/A'}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl flex items-center">
-                      <Mail className="h-4 w-4 text-gray-400 mr-3" />
-                      <p className="text-sm font-bold text-gray-900 truncate">{selectedStudent.email}</p>
+                    <div className="p-5 bg-white border border-green-50 rounded-3xl shadow-sm flex items-center">
+                      <div className="p-3 bg-green-50 rounded-xl mr-4"><Mail className="h-5 w-5 text-green-600" /></div>
+                      <p className="text-sm font-bold text-gray-800 truncate">{selectedStudent.email}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl flex items-center">
-                      <Phone className="h-4 w-4 text-gray-400 mr-3" />
-                      <p className="text-sm font-bold text-gray-900">{selectedStudent.phone || 'Chưa cập nhật'}</p>
+                    <div className="p-5 bg-white border border-green-50 rounded-3xl shadow-sm flex items-center">
+                      <div className="p-3 bg-teal-50 rounded-xl mr-4"><Phone className="h-5 w-5 text-teal-600" /></div>
+                      <p className="text-sm font-bold text-gray-800">{selectedStudent.phone || 'Chưa cập nhật'}</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Part 2 - Event History Table */}
                 <div>
-                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center">
+                  <h3 className="text-sm font-black text-green-700 uppercase tracking-widest mb-4 flex items-center">
                     <History className="h-5 w-5 mr-2" />
                     Lịch sử tham gia sự kiện
                   </h3>
 
                   {selectedStudent.participated_events && selectedStudent.participated_events.length > 0 ? (
-                    <div className="overflow-x-auto rounded-xl border border-gray-100">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50">
+                    <div className="overflow-hidden rounded-3xl border border-green-100 bg-white shadow-sm">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-green-50/50">
                           <tr>
-                            <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs">Tên sự kiện</th>
-                            <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs">Ngày tổ chức</th>
-                            <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs">Điểm rèn luyện</th>
-                            <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs">Trạng thái</th>
+                            <th className="px-5 py-4 font-black text-green-800 uppercase text-xs">Tên sự kiện</th>
+                            <th className="px-5 py-4 font-black text-green-800 uppercase text-xs">Ngày tổ chức</th>
+                            <th className="px-5 py-4 font-black text-green-800 uppercase text-xs">Điểm rèn luyện</th>
+                            <th className="px-5 py-4 font-black text-green-800 uppercase text-xs">Trạng thái</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
+                        <tbody className="divide-y divide-green-50">
                           {selectedStudent.participated_events.map((item: any) => (
-                            <tr key={item.registration_id} className="hover:bg-gray-50/50 transition-colors">
-                              <td className="px-4 py-3">
+                            <tr key={item.registration_id} className="hover:bg-green-50/30 transition-colors">
+                              <td className="px-5 py-4">
                                 <div className="flex items-center space-x-3">
                                   {item.event.banner_url && (
-                                    <img src={item.event.banner_url} alt="" className="h-8 w-8 rounded object-cover" referrerPolicy="no-referrer" />
+                                    <img src={item.event.banner_url} alt="" className="h-10 w-10 rounded-xl object-cover border border-gray-100" referrerPolicy="no-referrer" />
                                   )}
                                   <div>
-                                    <p className="text-sm font-bold text-gray-900 truncate max-w-[300px]" title={item.event.title}>
+                                    <p className="text-sm font-bold text-gray-800 truncate max-w-[250px]" title={item.event.title}>
                                       {item.event.title}
                                     </p>
-                                    <p className="text-xs font-bold text-gray-400">{item.event.page?.name}</p>
+                                    <p className="text-xs font-bold text-green-600 mt-0.5">{item.event.page?.name}</p>
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
-                                <p className="text-sm font-bold text-gray-700">
+                              <td className="px-5 py-4">
+                                <p className="text-sm font-bold text-gray-600">
                                   {format(new Date(item.event.start_time), 'dd/MM/yyyy')}
                                 </p>
                               </td>
-                              <td className="px-4 py-3">
-                                <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-black bg-blue-50 text-blue-600 border border-blue-100">
+                              <td className="px-5 py-4">
+                                <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black bg-teal-50 text-teal-700 border border-teal-100">
                                   +{item.event.training_points}
                                 </span>
                               </td>
-                              <td className="px-4 py-3">
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-green-50 text-green-600 border border-green-100 uppercase tracking-wider">
+                              <td className="px-5 py-4">
+                                <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-black bg-green-50 text-green-600 border border-green-200 uppercase tracking-wider">
                                   Đã tham gia
                                 </span>
                               </td>
@@ -651,32 +756,35 @@ const readExcelFile = (file: File): Promise<any[]> => {
                       </table>
                     </div>
                   ) : (
-                    <div className="text-center py-12 bg-gray-50 rounded-[32px] border border-dashed border-gray-200">
-                      <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-sm text-gray-400 italic">Sinh viên chưa tham gia sự kiện nào</p>
+                    <div className="text-center py-12 bg-white rounded-[32px] border border-dashed border-green-200">
+                      <History className="h-12 w-12 text-green-200 mx-auto mb-3" />
+                      <p className="text-sm text-green-500 font-medium italic">Sinh viên chưa tham gia sự kiện nào</p>
                     </div>
                   )}
                 </div>
 
-                {/* Stats Cards */}
                 <div className="grid grid-cols-2 gap-6">
-                  <div className="p-6 bg-blue-600 rounded-[24px] text-white shadow-lg">
-                    <p className="text-xs font-black text-blue-100 uppercase tracking-widest">Điểm rèn luyện</p>
-                    <p className="text-4xl font-black mt-1">{selectedStudent.training_points}</p>
+                  <div className="p-8 bg-gradient-to-br from-green-500 to-teal-500 rounded-[32px] text-white shadow-lg shadow-green-500/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-20"><CheckCircle2 className="w-24 h-24"/></div>
+                    <div className="relative z-10">
+                      <p className="text-sm font-black text-green-100 uppercase tracking-widest">Điểm rèn luyện</p>
+                      <p className="text-5xl font-black mt-2">{selectedStudent.training_points}</p>
+                    </div>
                   </div>
-                  <div className="p-6 bg-gray-900 rounded-[24px] text-white shadow-lg">
-                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Sự kiện đã tham gia</p>
-                    <p className="text-4xl font-black mt-1">{selectedStudent.attended_events_count}</p>
+                  <div className="p-8 bg-white border border-green-100 rounded-[32px] text-gray-800 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 text-green-900"><History className="w-24 h-24"/></div>
+                    <div className="relative z-10">
+                      <p className="text-sm font-black text-green-600 uppercase tracking-widest">Sự kiện đã tham gia</p>
+                      <p className="text-5xl font-black mt-2">{selectedStudent.attended_events_count}</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="p-6 border-t border-gray-50 flex items-center justify-end flex-shrink-0">
+              <div className="p-6 bg-white border-t border-green-50 flex items-center justify-end flex-shrink-0">
                 <Button 
                   onClick={() => setIsDetailModalOpen(false)}
-                  variant="outline"
-                  className="rounded-2xl px-8 py-3"
+                  className="rounded-2xl px-8 py-3.5 bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold border-none"
                 >
                   Đóng
                 </Button>
@@ -686,7 +794,6 @@ const readExcelFile = (file: File): Promise<any[]> => {
         )}
       </AnimatePresence>
 
-      {/* Import Modal */}
       <AnimatePresence>
         {isImportModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -698,43 +805,42 @@ const readExcelFile = (file: File): Promise<any[]> => {
               className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
             />
               <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 40 }}
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 40 }}
-                className="relative w-full max-w-3xl bg-white rounded-[48px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-3xl bg-white rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-green-100"
               >
                 {isImporting && (
-                  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex items-center justify-center">
                     <div className="flex flex-col items-center space-y-4">
-                      <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-                      <p className="text-sm font-black text-gray-700">Đang import sinh viên...</p>
+                      <div className="p-4 bg-green-50 rounded-full"><Loader2 className="h-10 w-10 animate-spin text-green-500" /></div>
+                      <p className="text-sm font-black text-green-800">Đang import sinh viên...</p>
                     </div>
                   </div>
                 )}
-              <div className="p-10 border-b border-gray-50 text-center flex-shrink-0">
-                <div className="h-20 w-20 bg-blue-50 rounded-[32px] flex items-center justify-center mx-auto mb-6 text-blue-600">
-                  <FileSpreadsheet className="h-10 w-10" />
+              <div className="p-10 bg-gradient-to-b from-green-50/50 to-white border-b border-green-50 text-center flex-shrink-0">
+                <div className="h-24 w-24 bg-gradient-to-br from-green-100 to-teal-100 rounded-[32px] flex items-center justify-center mx-auto mb-6 text-teal-600 shadow-inner">
+                  <FileSpreadsheet className="h-12 w-12" />
                 </div>
-                <h2 className="text-2xl font-black text-gray-900">Nhập danh sách sinh viên</h2>
-                <p className="text-sm font-bold text-gray-400 mt-2">Chọn file Excel hoặc CSV chứa danh sách sinh viên.</p>
+                <h2 className="text-2xl font-black text-gray-800">Nhập danh sách sinh viên</h2>
+                <p className="text-sm font-bold text-gray-500 mt-2">Chọn file Excel hoặc CSV chứa danh sách sinh viên.</p>
               </div>
 
-                <div className="p-10 space-y-6 overflow-y-auto flex-1">
-                  {/* File Info - click to change file */}
+                <div className="p-10 space-y-6 overflow-y-auto flex-1 bg-gray-50/30">
                   {selectedFile && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-4 bg-blue-50/50 border border-blue-100/50 rounded-2xl cursor-pointer hover:bg-blue-50/70 transition-colors"
+                      className="p-5 bg-white border border-green-200 rounded-3xl cursor-pointer hover:border-green-400 hover:shadow-md transition-all"
                       onClick={() => !isImporting && fileInputRef.current?.click()}
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-400/20 via-emerald-400/20 to-blue-500/20 flex items-center justify-center">
-                          <FileSpreadsheet className="h-5 w-5 text-yellow-600" />
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center border border-green-100">
+                          <FileSpreadsheet className="h-6 w-6 text-green-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-black text-blue-900 truncate">{selectedFile.name}</p>
-                          <p className="text-xs font-bold text-blue-500">
+                          <p className="text-base font-black text-gray-800 truncate">{selectedFile.name}</p>
+                          <p className="text-sm font-bold text-green-600 mt-1">
                             {parsedStudents.length} sinh viên sẵn sàng import • Nhấn để đổi file
                           </p>
                         </div>
@@ -744,38 +850,37 @@ const readExcelFile = (file: File): Promise<any[]> => {
                               e.stopPropagation();
                               handleClearFile();
                             }}
-                            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-3 bg-red-50 hover:bg-red-100 rounded-xl transition-colors group"
                           >
-                            <X className="h-4 w-4 text-red-500" />
+                            <X className="h-5 w-5 text-red-500 group-hover:scale-110 transition-transform" />
                           </button>
                         )}
                       </div>
                     </motion.div>
                   )}
 
-                {/* Preview Table (show first 5 rows) */}
                 {parsedStudents.length > 0 && (
                   <div className="space-y-3">
-                    <p className="text-xs font-black text-gray-400 uppercase tracking-wider">
-                      Xem trước ({Math.min(parsedStudents.length, 5)}/{parsedStudents.length} dòng)
+                    <p className="text-xs font-black text-green-700 uppercase tracking-wider flex items-center">
+                      <Eye className="w-4 h-4 mr-2" /> Xem trước ({Math.min(parsedStudents.length, 5)}/{parsedStudents.length} dòng)
                     </p>
-                    <div className="overflow-x-auto rounded-xl border border-gray-100">
-                      <table className="w-full text-xs">
-                        <thead className="bg-gray-50">
+                    <div className="overflow-hidden rounded-3xl border border-green-100 bg-white shadow-sm">
+                      <table className="w-full text-sm">
+                        <thead className="bg-green-50/50 border-b border-green-100">
                           <tr>
-                            <th className="px-3 py-2 text-left font-black text-gray-600">MSSV</th>
-                            <th className="px-3 py-2 text-left font-black text-gray-600">Họ tên</th>
-                            <th className="px-3 py-2 text-left font-black text-gray-600">Lớp</th>
-                            <th className="px-3 py-2 text-left font-black text-gray-600">Khoa</th>
+                            <th className="px-5 py-3 text-left font-black text-green-800 text-xs uppercase">MSSV</th>
+                            <th className="px-5 py-3 text-left font-black text-green-800 text-xs uppercase">Họ tên</th>
+                            <th className="px-5 py-3 text-left font-black text-green-800 text-xs uppercase">Lớp</th>
+                            <th className="px-5 py-3 text-left font-black text-green-800 text-xs uppercase">Khoa</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
-                          {parsedStudents.slice(0, 5).map((student, idx) => (
-                            <tr key={idx} className="hover:bg-gray-25">
-                              <td className="px-3 py-2 font-mono text-gray-700">{student.student_id}</td>
-                              <td className="px-3 py-2 text-gray-700">{student.full_name}</td>
-                              <td className="px-3 py-2 text-gray-600">{student.class_name || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600">{student.faculty || '-'}</td>
+                        <tbody className="divide-y divide-green-50">
+                          {parsedStudents.slice(0, 5).map((student: any, idx: number) => (
+                            <tr key={idx} className="hover:bg-green-50/30">
+                              <td className="px-5 py-3 font-mono font-bold text-gray-700">{student.student_id}</td>
+                              <td className="px-5 py-3 font-semibold text-gray-800">{student.full_name}</td>
+                              <td className="px-5 py-3 text-gray-600">{student.class_name || '-'}</td>
+                              <td className="px-5 py-3 text-gray-600">{student.faculty || '-'}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -784,7 +889,6 @@ const readExcelFile = (file: File): Promise<any[]> => {
                   </div>
                 )}
 
-                {/* Error Display */}
                 {importErrors.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
@@ -792,33 +896,34 @@ const readExcelFile = (file: File): Promise<any[]> => {
                     exit={{ opacity: 0, height: 0 }}
                     className="space-y-3"
                   >
-                    <div className="rounded-2xl border-l-4 border-l-red-500 bg-red-50/50 p-4">
-                      <div className="flex items-center space-x-2 mb-3">
-                        <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                        <h3 className="text-sm font-black text-red-700 uppercase tracking-wider">
-                          {importErrors.length} dòng bị lỗi
-                        </h3>
+                    <div className="rounded-3xl border border-red-200 bg-white shadow-sm overflow-hidden">
+                      <div className="p-5 bg-red-50/50 border-b border-red-100">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                          <h3 className="text-sm font-black text-red-800 uppercase tracking-wider">
+                            {importErrors.length} dòng bị lỗi
+                          </h3>
+                        </div>
+                        <p className="text-sm font-medium text-red-600">
+                          Các dòng có lỗi sẽ không được import. Vui lòng kiểm tra lại dữ liệu.
+                        </p>
                       </div>
-                      
-                      <p className="text-xs font-bold text-red-600 mb-3">
-                        Các dòng có lỗi sẽ không được import. Vui lòng kiểm tra lại dữ liệu.
-                      </p>
 
-                      <div className="max-h-48 overflow-y-auto border border-red-100/50 rounded-xl">
-                        <table className="w-full text-xs">
-                          <thead className="bg-red-100/50 border-b border-red-100/50 sticky top-0">
+                      <div className="max-h-48 overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-white sticky top-0 border-b border-red-100">
                             <tr>
-                              <th className="px-3 py-2 text-left font-black text-red-800">Dòng</th>
-                              <th className="px-3 py-2 text-left font-black text-red-800">MSSV</th>
-                              <th className="px-3 py-2 text-left font-black text-red-800">Lỗi</th>
+                              <th className="px-5 py-3 text-left font-black text-red-800 text-xs uppercase">Dòng</th>
+                              <th className="px-5 py-3 text-left font-black text-red-800 text-xs uppercase">MSSV</th>
+                              <th className="px-5 py-3 text-left font-black text-red-800 text-xs uppercase">Lỗi</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-red-100/30">
-                            {importErrors.map((err, idx) => (
-                              <tr key={idx} className="hover:bg-red-50/30 transition-colors">
-                                <td className="px-3 py-2 font-bold text-gray-700">{err.row}</td>
-                                <td className="px-3 py-2 text-gray-600">{err.studentId}</td>
-                                <td className="px-3 py-2 text-red-600 font-bold">{err.message}</td>
+                          <tbody className="divide-y divide-red-50">
+                            {importErrors.map((err: any, idx: number) => (
+                              <tr key={idx} className="hover:bg-red-50/30">
+                                <td className="px-5 py-3 font-bold text-gray-800">{err.row}</td>
+                                <td className="px-5 py-3 font-mono text-gray-600">{err.studentId}</td>
+                                <td className="px-5 py-3 text-red-600 font-semibold">{err.message}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -829,19 +934,19 @@ const readExcelFile = (file: File): Promise<any[]> => {
                 )}
               </div>
 
-              <div className="p-6 border-t border-gray-50 flex-shrink-0 flex items-center justify-end space-x-3">
+              <div className="p-6 bg-white border-t border-green-50 flex-shrink-0 flex items-center justify-end space-x-3">
                 <Button
                   variant="outline"
                   onClick={handleCloseImportModal}
                   disabled={isImporting}
-                  className="rounded-2xl px-6 py-3"
+                  className="rounded-2xl px-6 py-3.5 border-none bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold"
                 >
                   Hủy bỏ
                 </Button>
                 <Button
                   onClick={handleImportSubmit}
                   disabled={parsedStudents.length === 0 || isImporting}
-                  className="rounded-2xl px-8 py-3 relative overflow-hidden group"
+                  className="rounded-2xl px-8 py-3.5 bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold hover:from-green-600 hover:to-teal-600 shadow-lg shadow-green-500/30 border-none relative overflow-hidden transition-all duration-300 transform hover:-translate-y-0.5"
                 >
                   <span className="flex items-center space-x-2">
                     {isImporting ? (
@@ -863,7 +968,6 @@ const readExcelFile = (file: File): Promise<any[]> => {
         )}
       </AnimatePresence>
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
