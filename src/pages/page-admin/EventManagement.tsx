@@ -90,15 +90,15 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, type = 'dan
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 border border-gray-100 overflow-hidden"
+        className="relative w-full max-w-md bg-white rounded-2xl shadow-xl p-6 border border-gray-100 overflow-hidden"
       >
-        <div className={`absolute top-0 left-0 w-full h-2 ${type === 'danger' ? 'bg-red-500' : 'bg-amber-500'}`} />
+        <div className={`absolute top-0 left-0 w-full h-1.5 ${type === 'danger' ? 'bg-red-500' : 'bg-amber-500'}`} />
         <div className="flex items-start gap-4">
-          <div className={`p-3 rounded-2xl ${type === 'danger' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-500'}`}>
+          <div className={`p-3 rounded-xl ${type === 'danger' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-500'}`}>
             <AlertTriangle size={24} />
           </div>
           <div className="flex-1 pt-1">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">{title}</h3>
             <p className="text-gray-600 text-sm leading-relaxed">{message}</p>
           </div>
         </div>
@@ -106,15 +106,15 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, type = 'dan
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
+            className="px-5 py-2.5 rounded-lg text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 transition-colors disabled:opacity-50"
           >
             Hủy bỏ
           </button>
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className={`px-5 py-2.5 rounded-xl text-sm font-medium text-white flex items-center gap-2 transition-colors disabled:opacity-50
-              ${type === 'danger' ? 'bg-red-600 hover:bg-red-700 shadow-red-200' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'} shadow-lg`}
+            className={`px-5 py-2.5 rounded-lg text-sm font-medium text-white flex items-center gap-2 transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:transform-none
+              ${type === 'danger' ? 'bg-gradient-to-r from-red-500 to-rose-500 shadow-sm' : 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-sm'}`}
           >
             {isLoading && <Loader2 size={16} className="animate-spin" />}
             Xác nhận
@@ -185,28 +185,28 @@ const MapModal = ({ isOpen, onClose, latitude, longitude, onLocationSelect }: an
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[85vh]">
-        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
-          <h3 className="text-lg font-bold text-emerald-800 flex items-center gap-2">
-            <MapIcon className="text-emerald-500" /> Chọn vị trí trên bản đồ
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[85vh] border border-green-100">
+        <div className="px-6 py-4 border-b border-green-50 flex justify-between items-center bg-green-50/50">
+          <h3 className="text-lg font-bold text-green-800 flex items-center gap-2">
+            <MapIcon className="text-green-600" /> Chọn vị trí trên bản đồ
           </h3>
-          <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm"><X size={20} /></button>
+          <button onClick={onClose} className="p-2 bg-white rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm border border-gray-100"><X size={20} /></button>
         </div>
 
-        <div className="p-4 flex flex-col md:flex-row gap-3 bg-gray-50 border-b border-gray-100">
+        <div className="p-4 flex flex-col md:flex-row gap-3 bg-white border-b border-green-50">
           <form onSubmit={handleSearch} className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm kiếm địa chỉ (ví dụ: UTEHY)..."
-              className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm transition-all"
+              className="w-full pl-11 pr-4 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm transition-all"
             />
-            <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-emerald-100 text-emerald-600 rounded-xl hover:bg-emerald-200">
+            <button type="submit" className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200">
               <Navigation size={16} />
             </button>
           </form>
-          <button type="button" onClick={handleGetLocation} className="flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-200 whitespace-nowrap text-sm font-medium">
+          <button type="button" onClick={handleGetLocation} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-green-50 text-green-700 border border-green-100 rounded-lg hover:bg-green-100 transition-colors shadow-sm whitespace-nowrap text-sm font-medium">
             <LocateFixed size={18} /> Vị trí của tôi
           </button>
         </div>
@@ -219,11 +219,11 @@ const MapModal = ({ isOpen, onClose, latitude, longitude, onLocationSelect }: an
           </MapContainer>
         </div>
 
-        <div className="px-6 py-4 bg-white border-t border-gray-100 flex flex-wrap justify-between items-center gap-4">
-          <div className="text-sm font-mono bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-100">
+        <div className="px-6 py-4 bg-white border-t border-green-50 flex flex-wrap justify-between items-center gap-4">
+          <div className="text-sm font-mono bg-green-50 text-green-800 px-4 py-2 rounded-lg border border-green-100">
             Lat: {markerPosition[0].toFixed(6)} | Lng: {markerPosition[1].toFixed(6)}
           </div>
-          <button onClick={onClose} className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-200 transition-all font-medium flex items-center gap-2">
+          <button onClick={onClose} className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white rounded-lg shadow-sm transition-all font-medium flex items-center gap-2 transform hover:-translate-y-0.5">
             <CheckCircle2 size={18} /> Xác nhận vị trí
           </button>
         </div>
@@ -505,13 +505,13 @@ export const EventManagement = () => {
 
   const getStatusBadge = (status: string) => {
     const config: any = {
-      PENDING: { color: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Chờ duyệt', icon: <Timer size={14} /> },
-      APPROVED: { color: 'bg-emerald-100 text-emerald-700 border-emerald-200 shadow-emerald-100 shadow-sm', label: 'Đã duyệt', icon: <CheckCircle2 size={14} /> },
-      REJECTED: { color: 'bg-red-100 text-red-700 border-red-200', label: 'Từ chối', icon: <X size={14} /> },
-      ONGOING: { color: 'bg-blue-100 text-blue-700 border-blue-200 animate-pulse', label: 'Đang diễn ra', icon: <Crosshair size={14} /> },
-      CLOSED: { color: 'bg-gray-100 text-gray-600 border-gray-200', label: 'Đã kết thúc', icon: <FileText size={14} /> },
+      PENDING: { color: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Chờ duyệt', icon: <Timer size={14} /> },
+      APPROVED: { color: 'bg-green-50 text-green-700 border-green-200', label: 'Đã duyệt', icon: <CheckCircle2 size={14} /> },
+      REJECTED: { color: 'bg-red-50 text-red-700 border-red-200', label: 'Từ chối', icon: <X size={14} /> },
+      ONGOING: { color: 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse', label: 'Đang diễn ra', icon: <Crosshair size={14} /> },
+      CLOSED: { color: 'bg-gray-50 text-gray-600 border-gray-200', label: 'Đã kết thúc', icon: <FileText size={14} /> },
     };
-    const { color, label, icon } = config[status] || { color: 'bg-gray-100 text-gray-700', label: status, icon: null };
+    const { color, label, icon } = config[status] || { color: 'bg-gray-50 text-gray-700', label: status, icon: null };
     return (
       <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${color}`}>
         {icon} {label}
@@ -521,24 +521,24 @@ export const EventManagement = () => {
 
   const filteredEvents = events.filter((event: any) => event.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  if (isLoading) return <div className="flex h-[80vh] items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-emerald-500" /></div>;
+  if (isLoading) return <div className="flex h-[80vh] items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-green-500" /></div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 md:p-8">
+    <div className="min-h-screen font-sans bg-gradient-to-br from-green-50 via-white to-green-50 p-4 md:p-8">
       {/* ── Header ── */}
       <div className="max-w-7xl mx-auto mb-10">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
-            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 tracking-tight">
+            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-700 to-teal-600 tracking-tight">
               Quản lý Sự kiện
             </h1>
             <p className="text-gray-500 mt-2 text-sm md:text-base flex items-center gap-2">
-              <Target size={18} className="text-emerald-500" /> Tổ chức và theo dõi các hoạt động của {page?.name}.
+              <Target size={18} className="text-green-500" /> Tổ chức và theo dõi các hoạt động của {page?.name}.
             </p>
           </div>
           <button
             onClick={handleOpenCreateModal}
-            className="group flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl shadow-xl shadow-emerald-200 hover:shadow-emerald-300 hover:-translate-y-1 transition-all duration-300 font-semibold"
+            className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5 font-medium"
           >
             <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
             Tạo sự kiện mới
@@ -554,7 +554,7 @@ export const EventManagement = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-md border border-emerald-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white shadow-sm transition-all"
+            className="w-full pl-12 pr-4 py-3.5 bg-white border border-green-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm transition-all"
             placeholder="Tìm kiếm theo tên sự kiện..."
           />
         </div>
@@ -569,59 +569,59 @@ export const EventManagement = () => {
                 key={event.id}
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white/90 backdrop-blur-xl rounded-3xl border border-emerald-100 shadow-lg shadow-emerald-100/50 hover:shadow-2xl hover:shadow-emerald-200/50 transition-all duration-300 flex flex-col overflow-hidden group"
+                className="bg-white rounded-2xl border border-green-100 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group"
               >
                 {/* Image Banner */}
-                <div className="relative h-48 w-full bg-gray-100 overflow-hidden">
+                <div className="relative h-48 w-full bg-gray-50 overflow-hidden">
                   {event.banner_url ? (
                     <img src={event.banner_url} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50">
+                    <div className="w-full h-full flex flex-col items-center justify-center text-green-200 bg-gradient-to-br from-green-50 to-white">
                       <Image size={48} className="mb-2 opacity-50" />
-                      <span className="text-xs font-medium text-emerald-600/50">Không có ảnh</span>
+                      <span className="text-xs font-medium text-green-600/50">Không có ảnh</span>
                     </div>
                   )}
                   <div className="absolute top-4 left-4 flex gap-2">
                     {getStatusBadge(event.status)}
-                    <span className="flex items-center gap-1 bg-white/90 backdrop-blur-sm text-emerald-600 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                    <span className="flex items-center gap-1 bg-white/90 backdrop-blur-sm text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
                       <Award size={14} /> +{event.training_points} điểm
                     </span>
                   </div>
                 </div>
 
                 {/* Content */}
-                <div className="p-6 flex-1 flex flex-col">
-                  <h3 className="text-xl font-bold text-gray-900 line-clamp-2 mb-4 group-hover:text-emerald-600 transition-colors">
+                <div className="p-5 flex-1 flex flex-col">
+                  <h3 className="text-lg font-bold text-gray-800 line-clamp-2 mb-4 group-hover:text-green-600 transition-colors">
                     {event.title}
                   </h3>
 
-                  <div className="space-y-3 flex-1">
-                    <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                      <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600"><Clock size={16} /></div>
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-3 text-sm text-gray-600 hover:bg-green-50/50 p-2 rounded-lg border border-transparent hover:border-green-100 transition-colors">
+                      <div className="p-1.5 bg-green-50 rounded-md text-green-600"><Clock size={16} /></div>
                       {format(new Date(event.start_time), 'HH:mm, dd/MM/yyyy', { locale: vi })}
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                      <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600"><MapPin size={16} /></div>
+                    <div className="flex items-center gap-3 text-sm text-gray-600 hover:bg-green-50/50 p-2 rounded-lg border border-transparent hover:border-green-100 transition-colors">
+                      <div className="p-1.5 bg-green-50 rounded-md text-green-600"><MapPin size={16} /></div>
                       <span className="truncate">{event.location}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                      <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600"><Users size={16} /></div>
-                      <span>Tham gia: <strong className="text-emerald-600">{event._count?.registrations || 0}</strong> / {event.max_slots || 0}</span>
+                    <div className="flex items-center gap-3 text-sm text-gray-600 hover:bg-green-50/50 p-2 rounded-lg border border-transparent hover:border-green-100 transition-colors">
+                      <div className="p-1.5 bg-green-50 rounded-md text-green-600"><Users size={16} /></div>
+                      <span>Tham gia: <strong className="text-green-600">{event._count?.registrations || 0}</strong> / {event.max_slots || 0}</span>
                     </div>
                   </div>
 
                   {/* Actions Footer */}
-                  <div className="mt-6 pt-4 border-t border-gray-100 grid grid-cols-4 gap-2">
+                  <div className="mt-5 pt-4 border-t border-green-50 grid grid-cols-4 gap-2">
                     {/* Hành động chính tùy theo Status */}
                     <div className="col-span-2 flex gap-2">
-                      {event.status === 'APPROVED' && (
+                      {(event.status === 'APPROVED' || event.status === 'ONGOING') && (
                         <button
                           onClick={() => handleStartCheckin(event.id)}
                           disabled={isActionLoading === event.id}
-                          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-md shadow-blue-200 text-sm font-medium disabled:opacity-50"
+                          title="Mở QR Điểm danh"
+                          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm hover:shadow-md text-sm font-medium disabled:opacity-50"
                         >
-                          {isActionLoading === event.id ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={18} />}
-                          Mở QR
+                          {isActionLoading === event.id ? <Loader2 size={18} className="animate-spin" /> : <QrCode size={20} />}
                         </button>
                       )}
 
@@ -629,15 +629,15 @@ export const EventManagement = () => {
                         <button
                           onClick={() => confirmEndCheckin(event.id)}
                           disabled={isActionLoading === event.id}
-                          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors shadow-md shadow-red-200 text-sm font-medium disabled:opacity-50"
+                          title="Kết thúc điểm danh"
+                          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 transition-all shadow-sm hover:shadow-md text-sm font-medium disabled:opacity-50"
                         >
-                          {isActionLoading === event.id ? <Loader2 size={16} className="animate-spin" /> : <X size={18} />}
-                          Kết thúc
+                          {isActionLoading === event.id ? <Loader2 size={18} className="animate-spin" /> : <X size={20} />}
                         </button>
                       )}
-                      {/* Nếu chưa duyệt hoặc đã đóng thì show nút rỗng chiếm chỗ cho đẹp hoặc nút xem chi tiết */}
+                      
                       {event.status !== 'APPROVED' && event.status !== 'ONGOING' && (
-                        <div className="flex-1 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 text-sm border border-gray-100">
+                        <div className="flex-1 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 text-sm border border-gray-100 font-medium">
                           {event.status === 'CLOSED' ? 'Đã kết thúc' : 'Chưa diễn ra'}
                         </div>
                       )}
@@ -646,16 +646,16 @@ export const EventManagement = () => {
                     {/* Các nút điều hướng cơ bản */}
                     <Link
                       to={`/page-admin/events/${event.id}/registrations`}
-                      className="flex items-center justify-center rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white transition-colors border border-teal-100 shadow-sm"
+                      className="flex items-center justify-center rounded-lg bg-green-50 text-green-700 hover:bg-green-500 hover:text-white transition-all border border-green-100 shadow-sm"
                       title="Danh sách sinh viên"
                     >
-                      <UserCheck size={18} />
+                      <UserCheck size={20} />
                     </Link>
                     <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => handleOpenEditModal(event)} disabled={isActionLoading === event.id} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                      <button onClick={() => handleOpenEditModal(event)} disabled={isActionLoading === event.id} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Chỉnh sửa">
                         <Edit2 size={18} />
                       </button>
-                      <button onClick={() => confirmDeleteEvent(event.id)} disabled={isActionLoading === event.id} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <button onClick={() => confirmDeleteEvent(event.id)} disabled={isActionLoading === event.id} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Xóa">
                         {isActionLoading === event.id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
                       </button>
                     </div>
@@ -664,9 +664,9 @@ export const EventManagement = () => {
               </motion.div>
             ))
           ) : (
-            <div className="col-span-full py-20 flex flex-col items-center justify-center text-gray-400 bg-white/50 backdrop-blur-sm rounded-3xl border border-dashed border-emerald-200">
-              <Search size={48} className="mb-4 text-emerald-200" />
-              <p className="text-lg text-emerald-800 font-medium">Không tìm thấy sự kiện nào.</p>
+            <div className="col-span-full py-20 flex flex-col items-center justify-center text-gray-400 bg-white rounded-2xl border border-dashed border-green-200">
+              <Search size={48} className="mb-4 text-green-200" />
+              <p className="text-lg text-green-800 font-medium">Không tìm thấy sự kiện nào.</p>
             </div>
           )}
         </AnimatePresence>
@@ -677,32 +677,32 @@ export const EventManagement = () => {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden my-auto border border-emerald-100">
-              <div className="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
-                <h2 className="text-2xl font-bold text-emerald-800 flex items-center gap-3">
-                  <span className="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><Calendar size={24} /></span>
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden my-auto border border-green-100">
+              <div className="px-8 py-5 border-b border-green-50 flex justify-between items-center bg-green-50/50">
+                <h2 className="text-xl font-bold text-green-800 flex items-center gap-3">
+                  <span className="p-2 bg-green-100 text-green-700 rounded-lg"><Calendar size={20} /></span>
                   {editingEventId ? 'Chỉnh sửa sự kiện' : 'Tạo sự kiện mới'}
                 </h2>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors bg-white shadow-sm border border-gray-100">
+                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors bg-white shadow-sm border border-gray-100">
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="p-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
+              <div className="p-8 max-h-[75vh] overflow-y-auto custom-scrollbar bg-gray-50/30">
                 <form id="event-form" onSubmit={handleSubmit} className="space-y-8">
                   {/* Basic Info */}
-                  <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
-                    <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><FileText size={16} /> Thông tin cơ bản</h3>
+                  <div className="bg-white p-6 rounded-xl border border-green-100 shadow-sm">
+                    <h3 className="text-sm font-bold text-green-700 uppercase tracking-wider mb-4 flex items-center gap-2"><FileText size={16} /> Thông tin cơ bản</h3>
                     <div className="space-y-4">
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
-                            <label className="block text-sm font-semibold text-gray-700">Tên sự kiện <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-medium text-gray-700">Tên sự kiện <span className="text-red-500">*</span></label>
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
                                 onClick={handleGeneratePoster}
                                 disabled={isGeneratingPoster || (!formData.description.trim() && !formData.title.trim())}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-semibold rounded-xl hover:from-pink-600 hover:to-rose-600 transition-all shadow-md shadow-rose-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-semibold rounded-lg hover:from-pink-600 hover:to-rose-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Tạo poster bằng AI"
                               >
                                 {isGeneratingPoster ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
@@ -711,73 +711,73 @@ export const EventManagement = () => {
                               <button
                                 type="button"
                                 onClick={() => setIsAiModalOpen(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md shadow-indigo-200"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-semibold rounded-lg hover:from-purple-600 hover:to-indigo-600 transition-all shadow-sm"
                                 title="Viết bài bằng AI"
                               >
                                 <Wand2 size={14} />
-                                Viết bài bằng AI
+                                Viết bài AI
                               </button>
                             </div>
                           </div>
-                          <input required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm" placeholder="Ví dụ: Lễ hội Xuân 2024" />
+                          <input required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white transition-all shadow-sm" placeholder="Ví dụ: Lễ hội Xuân 2024" />
                         </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mô tả chi tiết <span className="text-red-500">*</span></label>
-                        <textarea required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={4} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm resize-none" placeholder="Mô tả mục đích, nội dung..." />
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Mô tả chi tiết <span className="text-red-500">*</span></label>
+                        <textarea required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={4} className="w-full px-4 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white transition-all shadow-sm resize-none" placeholder="Mô tả mục đích, nội dung..." />
                       </div>
                     </div>
                   </div>
 
                   {/* Time & Category */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-4">
-                      <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><Clock size={16} /> Thời gian & Phân loại</h3>
+                    <div className="bg-white p-6 rounded-xl border border-green-100 shadow-sm space-y-4">
+                      <h3 className="text-sm font-bold text-green-700 uppercase tracking-wider mb-4 flex items-center gap-2"><Clock size={16} /> Thời gian & Phân loại</h3>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Danh mục <span className="text-red-500">*</span></label>
-                        <select required value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Danh mục <span className="text-red-500">*</span></label>
+                        <select required value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} className="w-full px-4 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm">
                           <option value="">-- Chọn danh mục --</option>
                           {categories.map((cat: any) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                         </select>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Bắt đầu <span className="text-red-500">*</span></label>
-                          <input type="datetime-local" required value={formData.start_time} onChange={(e) => setFormData({ ...formData, start_time: e.target.value })} className="w-full px-3 py-3 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 shadow-sm" />
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Bắt đầu <span className="text-red-500">*</span></label>
+                          <input type="datetime-local" required value={formData.start_time} onChange={(e) => setFormData({ ...formData, start_time: e.target.value })} className="w-full px-3 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-xs focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm" />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kết thúc</label>
-                          <input type="datetime-local" value={formData.end_time} onChange={(e) => setFormData({ ...formData, end_time: e.target.value })} className="w-full px-3 py-3 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 shadow-sm" />
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Kết thúc</label>
+                          <input type="datetime-local" value={formData.end_time} onChange={(e) => setFormData({ ...formData, end_time: e.target.value })} className="w-full px-3 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-xs focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm" />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Hạn đăng ký</label>
-                        <input type="datetime-local" value={formData.registration_deadline} onChange={(e) => setFormData({ ...formData, registration_deadline: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 shadow-sm" />
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Hạn đăng ký</label>
+                        <input type="datetime-local" value={formData.registration_deadline} onChange={(e) => setFormData({ ...formData, registration_deadline: e.target.value })} className="w-full px-4 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm" />
                       </div>
                     </div>
 
-                    <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-4">
-                      <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><MapPin size={16} /> Địa điểm & GPS</h3>
+                    <div className="bg-white p-6 rounded-xl border border-green-100 shadow-sm space-y-4">
+                      <h3 className="text-sm font-bold text-green-700 uppercase tracking-wider mb-4 flex items-center gap-2"><MapPin size={16} /> Địa điểm & GPS</h3>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nơi tổ chức</label>
-                        <input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 shadow-sm" placeholder="Hội trường A..." />
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Nơi tổ chức</label>
+                        <input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} className="w-full px-4 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm" placeholder="Hội trường A..." />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tọa độ GPS (Dùng để Check-in)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Tọa độ GPS (Dùng để Check-in)</label>
                         <div className="flex gap-2">
-                          <input readOnly value={formData.latitude && formData.longitude ? `${formData.latitude}, ${formData.longitude}` : ''} className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-500" placeholder="Chưa chọn tọa độ" />
-                          <button type="button" onClick={() => setIsMapModalOpen(true)} className="px-4 py-3 bg-emerald-100 text-emerald-600 rounded-xl hover:bg-emerald-200 font-medium whitespace-nowrap flex items-center gap-2 transition-colors">
+                          <input readOnly value={formData.latitude && formData.longitude ? `${formData.latitude}, ${formData.longitude}` : ''} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-lg text-sm text-gray-500" placeholder="Chưa chọn tọa độ" />
+                          <button type="button" onClick={() => setIsMapModalOpen(true)} className="px-4 py-2.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-100 font-medium whitespace-nowrap flex items-center gap-2 transition-colors">
                             <MapIcon size={18} /> Bản đồ
                           </button>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3 pt-2">
                          <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Số lượng tối đa</label>
-                          <input type="number" value={formData.max_participants} onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 shadow-sm" placeholder="100" />
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Số lượng tối đa</label>
+                          <input type="number" value={formData.max_participants} onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })} className="w-full px-4 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm" placeholder="100" />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Điểm rèn luyện</label>
-                          <input type="number" value={formData.training_points} onChange={(e) => setFormData({ ...formData, training_points: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 shadow-sm" placeholder="5" />
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Điểm rèn luyện</label>
+                          <input type="number" value={formData.training_points} onChange={(e) => setFormData({ ...formData, training_points: e.target.value })} className="w-full px-4 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm" placeholder="5" />
                         </div>
                       </div>
                     </div>
@@ -785,7 +785,7 @@ export const EventManagement = () => {
 
                   {/* AI Poster Preview */}
                   {posterImageUrl && (
-                    <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-2xl border border-pink-100">
+                    <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-xl border border-pink-100 shadow-sm">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-bold text-pink-600 uppercase tracking-wider flex items-center gap-2">
                           <Image size={16} /> Poster AI đã tạo
@@ -796,46 +796,46 @@ export const EventManagement = () => {
                             setPosterImageUrl('');
                             setFormData(prev => ({ ...prev, banner_url: '' }));
                           }}
-                          className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
+                          className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1 bg-white px-2 py-1 rounded-md shadow-sm"
                         >
                           <X size={14} /> Xóa
                         </button>
                       </div>
-<div className="flex items-center justify-center">
-                        <div className="relative w-full max-w-md aspect-[16/9] rounded-xl overflow-hidden shadow-lg border-2 border-white">
+                      <div className="flex items-center justify-center">
+                        <div className="relative w-full max-w-md aspect-[16/9] rounded-xl overflow-hidden shadow-md border-2 border-white">
                           <img src={posterImageUrl} alt="AI Generated Poster" className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <h3 className="text-white font-bold text-4xl uppercase drop-shadow-2xl text-center px-4">
+                            <h3 className="text-white font-bold text-2xl md:text-3xl uppercase drop-shadow-lg text-center px-4">
                               {formData.title}
                             </h3>
                           </div>
                         </div>
                       </div>
-                      <p className="text-xs text-pink-600 mt-3 text-center flex items-center justify-center gap-1">
+                      <p className="text-xs text-pink-600 mt-3 text-center flex items-center justify-center gap-1 font-medium">
                         <CheckCircle2 size={14} /> Ảnh sẽ được sử dụng làm banner sự kiện khi bạn lưu
                       </p>
                     </div>
                   )}
 
                    {/* Banner Image */}
-                   <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
-                    <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-4 flex items-center gap-2"><Image size={16} /> Ảnh bìa sự kiện</h3>
+                   <div className="bg-white p-6 rounded-xl border border-green-100 shadow-sm">
+                    <h3 className="text-sm font-bold text-green-700 uppercase tracking-wider mb-4 flex items-center gap-2"><Image size={16} /> Ảnh bìa sự kiện</h3>
                     <div className="flex items-center justify-center w-full">
-                      <label className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-emerald-300 rounded-2xl cursor-pointer bg-white hover:bg-emerald-50 transition-colors overflow-hidden group">
+                      <label className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-green-200 rounded-xl cursor-pointer bg-green-50/30 hover:bg-green-50 transition-colors overflow-hidden group">
                         {imagePreview || formData.banner_url ? (
                           <>
                             <img src={imagePreview || formData.banner_url} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-40 transition-opacity" />
-                            <div className="absolute flex flex-col items-center text-emerald-800 opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md">
-                              <Upload size={32} className="mb-2" />
-                              <span className="font-semibold">Đổi ảnh khác</span>
+                            <div className="absolute flex flex-col items-center text-green-800 opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md bg-white/80 p-4 rounded-lg">
+                              <Upload size={24} className="mb-1" />
+                              <span className="font-semibold text-sm">Đổi ảnh khác</span>
                             </div>
                           </>
                         ) : (
-                          <div className="flex flex-col items-center justify-center pt-5 pb-6 text-emerald-600">
-                            <Image size={40} className="mb-3 opacity-60" />
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6 text-green-600">
+                            <Image size={40} className="mb-3 opacity-50" />
                             <p className="mb-2 text-sm font-semibold">Nhấn để tải ảnh lên</p>
-                            <p className="text-xs text-emerald-500/70">PNG, JPG, WEBP (Max: 5MB)</p>
+                            <p className="text-xs text-green-500/70">PNG, JPG, WEBP (Max: 5MB)</p>
                           </div>
                         )}
                         <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
@@ -846,13 +846,13 @@ export const EventManagement = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
-                <p className="text-xs text-gray-500 flex items-center gap-1.5"><AlertCircle size={14} className="text-amber-500"/> Kiểm tra kỹ thông tin trước khi lưu.</p>
+              <div className="px-8 py-4 border-t border-green-50 bg-white flex justify-between items-center rounded-b-2xl">
+                <p className="text-xs text-gray-500 flex items-center gap-1.5 font-medium"><AlertCircle size={14} className="text-amber-500"/> Kiểm tra kỹ thông tin trước khi lưu.</p>
                 <div className="flex gap-3">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 rounded-xl font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 rounded-lg font-medium text-green-700 bg-green-50 border border-green-100 hover:bg-green-100 transition-colors">
                     Hủy bỏ
                   </button>
-                  <button type="submit" form="event-form" disabled={!!isActionLoading} className="px-6 py-2.5 rounded-xl font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50 disabled:transform-none">
+                  <button type="submit" form="event-form" disabled={!!isActionLoading} className="px-6 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-green-500 to-teal-500 shadow-sm hover:shadow-md hover:from-green-600 hover:to-teal-600 transition-all transform hover:-translate-y-0.5 flex items-center gap-2 disabled:opacity-50 disabled:transform-none">
                     {isActionLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                     {editingEventId ? 'Cập nhật sự kiện' : 'Tạo sự kiện'}
                   </button>
@@ -868,38 +868,38 @@ export const EventManagement = () => {
          {isAiModalOpen && (
            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAiModalOpen(false)} className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
-             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden border border-purple-100">
-               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-white">
+             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden border border-purple-100">
+               <div className="px-6 py-4 border-b border-purple-50 flex justify-between items-center bg-purple-50/50">
                  <h3 className="text-lg font-bold text-purple-800 flex items-center gap-2">
-                   <Wand2 className="text-purple-500" size={22} />
+                   <Wand2 className="text-purple-600" size={20} />
                    Trợ lý AI tạo nội dung
                  </h3>
-                 <button onClick={() => setIsAiModalOpen(false)} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors bg-white shadow-sm border border-gray-100">
+                 <button onClick={() => setIsAiModalOpen(false)} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors bg-white shadow-sm border border-gray-100">
                    <X size={20} />
                  </button>
                </div>
 
                <div className="p-6 space-y-4">
-                 <p className="text-sm text-gray-600">
+                 <p className="text-sm text-gray-600 font-medium">
                    Nhập từ khóa hoặc chủ đề sự kiện, AI sẽ giúp bạn viết tiêu đề và mô tả hấp dẫn.
                  </p>
                  <div>
-                   <label className="block text-sm font-semibold text-gray-700 mb-2">Từ khóa / Chủ đề</label>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">Từ khóa / Chủ đề</label>
                    <textarea
                      value={aiPrompt}
                      onChange={(e) => setAiPrompt(e.target.value)}
                      rows={4}
-                     className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all shadow-sm resize-none"
+                     className="w-full px-4 py-2.5 bg-purple-50/30 border border-purple-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all shadow-sm resize-none"
                      placeholder="Ví dụ: Sự kiện hiến máu mùa hè, 15/6, quyên góp máu cho người bệnh..."
                    />
                  </div>
                </div>
 
-               <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+               <div className="px-6 py-4 border-t border-purple-50 bg-white flex justify-end gap-3 rounded-b-2xl">
                  <button
                    type="button"
                    onClick={() => setIsAiModalOpen(false)}
-                   className="px-5 py-2.5 rounded-xl font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+                   className="px-5 py-2.5 rounded-lg font-medium text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors"
                  >
                    Hủy bỏ
                  </button>
@@ -907,7 +907,7 @@ export const EventManagement = () => {
                    type="button"
                    onClick={handleAiGenerate}
                    disabled={isGenerating || !aiPrompt.trim()}
-                   className="px-5 py-2.5 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-500 to-indigo-500 shadow-lg shadow-indigo-200 hover:from-purple-600 hover:to-indigo-600 transition-all flex items-center gap-2 disabled:opacity-50 disabled:transform-none"
+                   className="px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-500 shadow-sm hover:shadow-md hover:from-purple-600 hover:to-indigo-600 transition-all transform hover:-translate-y-0.5 flex items-center gap-2 disabled:opacity-50 disabled:transform-none"
                  >
                    {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Wand2 size={18} />}
                    {isGenerating ? 'Đang tạo...' : 'Tạo nội dung'}
