@@ -273,9 +273,9 @@ export const EventManagement = () => {
    const fetchInitialData = async () => {
      try {
        setIsLoading(true);
-       // Get managed page from auth store
-       const { user } = useAuthStore();
-       const managedPageId = user?.page_id || user?.managed_page?.id;
+// Get managed page from auth store
+        const { user } = useAuthStore.getState();
+        const managedPageId = user?.page_id || user?.managed_page?.id;
        let managedPage = null;
        if (managedPageId) {
          const pageRes = await pagesApi.getById(managedPageId);

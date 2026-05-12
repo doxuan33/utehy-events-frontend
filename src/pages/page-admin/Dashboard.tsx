@@ -53,9 +53,9 @@ export const Dashboard = () => {
     try {
       setIsLoading(true);
 
-       // 1. Get managed page from auth store
-       const { user } = useAuthStore();
-       const managedPageId = user?.page_id || user?.managed_page?.id;
+// 1. Get managed page from auth store
+        const { user } = useAuthStore.getState();
+        const managedPageId = user?.page_id || user?.managed_page?.id;
        if (!managedPageId) {
          setIsLoading(false);
          return;
