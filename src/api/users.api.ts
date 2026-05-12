@@ -31,8 +31,8 @@ export const usersApi = {
   getById: (id: string) =>
     apiClient.get(`/users/${id}`),
 
-  getAll: (params?: { page?: number; limit?: number; search?: string }) =>
-    apiClient.get('/users', { params }),
+   getAll: (params?: { page?: number; limit?: number; search?: string; role?: 'STUDENT' | 'PAGE_ADMIN' | 'SYSTEM_ADMIN' }) =>
+     apiClient.get('/users', { params }),
 
   toggleActive: (id: string) =>
     apiClient.patch(`/users/${id}/toggle-active`),

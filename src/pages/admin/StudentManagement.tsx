@@ -48,22 +48,23 @@ export const StudentManagement = () => {
     fetchStudents();
   }, []);
 
-  const fetchStudents = async () => {
-    try {
-      setIsLoading(true);
-      const res = await usersApi.getAll({ 
-        search: searchQuery,
-        limit: 50 
-      });
-      // Filter only students if the API returns all roles
-      const allUsers = res.data.data?.data || res.data.data || [];
-      setStudents(allUsers.filter((u: any) => u.role === 'STUDENT'));
-    } catch (err) {
-      console.error('Failed to fetch students', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+   const fetchStudents = async () => {
+     try {
+       setIsLoading(true);
+       const res = await usersApi.getAll({ 
+         search: searchQuery,
+         limit: 50,
+         role: 'STUDENT'
+       });
+       const allUsers = res.data.data?.data || res.data.data || [];
+       setStudents(allUsers);
+     } catch (err) {
+       console.error('Failed to fetch students', err);
+       toast.error('Không thể tải danh sách sinh viên');
+     } finally {
+       setIsLoading(false);
+     }
+   };
 
   const validateStudentData = (data: any) => {
     const errors: string[] = [];
@@ -143,30 +144,32 @@ export const StudentManagement = () => {
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
   const [confirmContent, setConfirmContent] = useState({ title: '', description: '', confirmText: 'Xác nhận' });
 
-  const handleToggleActive = async (student: any) => {
-    const action = student.is_active ? 'khóa' : 'mở khóa';
-    setConfirmAction(() => async () => {
-      try {
-        setIsActionLoading(true);
-        await usersApi.toggleActive(student.id);
-        setStudents(students.map(s => s.id === student.id ? { ...s, is_active: !s.is_active } : s));
-        if (selectedStudent?.id === student.id) {
-          setSelectedStudent({ ...selectedStudent, is_active: !student.is_active });
-        }
-      } catch (err) {
-        console.error('Failed to toggle active', err);
-        alert('Thao tác thất bại.');
-      } finally {
-        setIsActionLoading(false);
-      }
-    });
-    setConfirmContent({
-      title: `Xác nhận ${action} tài khoản`,
-      description: `Bạn có chắc chắn muốn ${action} tài khoản của sinh viên ${student.profile?.full_name}?`,
-      confirmText: action.charAt(0).toUpperCase() + action.slice(1)
-    });
-    setShowConfirmDialog(true);
-  };
+   const handleToggleActive = async (student: any) => {
+     const action = student.is_active ? 'khóa' : 'mở khóa';
+     setConfirmAction(() => async () => {
+       try {
+         setIsActionLoading(true);
+         const res = await usersApi.toggleActive(student.id);
+         toast.success(res.data?.message || `Đã ${action} tài khoản`);
+         setStudents(students.map(s => s.id === student.id ? { ...s, is_active: !s.is_active } : s));
+         if (selectedStudent?.id === student.id) {
+           setSelectedStudent({ ...selectedStudent, is_active: !student.is_active });
+         }
+       } catch (err: any) {
+         console.error('Failed to toggle active', err);
+         const errorMessage = err.response?.data?.message || 'Không thể thực hiện thao tác';
+         toast.error(errorMessage);
+       } finally {
+         setIsActionLoading(false);
+       }
+     });
+     setConfirmContent({
+       title: `Xác nhận ${action} tài khoản`,
+       description: `Bạn có chắc chắn muốn ${action} tài khoản của sinh viên ${student.profile?.full_name}?`,
+       confirmText: action.charAt(0).toUpperCase() + action.slice(1)
+     });
+     setShowConfirmDialog(true);
+   };
 
   const handleConfirm = async () => {
     setShowConfirmDialog(false);
@@ -175,19 +178,19 @@ export const StudentManagement = () => {
     }
   };
 
-  const handleViewDetails = async (student: any) => {
-    try {
-      setIsActionLoading(true);
-      const res = await usersApi.getById(student.id);
-      setSelectedStudent(res.data.data);
-      setIsModalOpen(true);
-    } catch (err) {
-      console.error('Failed to fetch student details', err);
-      alert('Không thể tải thông tin chi tiết.');
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
+   const handleViewDetails = async (student: any) => {
+     try {
+       setIsActionLoading(true);
+       const res = await usersApi.getById(student.id);
+       setSelectedStudent(res.data.data);
+       setIsModalOpen(true);
+     } catch (err) {
+       console.error('Failed to fetch student details', err);
+       toast.error('Không thể tải thông tin chi tiết');
+     } finally {
+       setIsActionLoading(false);
+     }
+   };
 
   return (
     <div className="space-y-8">
@@ -300,54 +303,54 @@ export const StudentManagement = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-b border-gray-100">
-                <th className="px-8 py-5 text-xs font-black text-gray-400 uppercase tracking-widest">Sinh viên</th>
-                <th className="px-8 py-5 text-xs font-black text-gray-400 uppercase tracking-widest">MSSV / Lớp</th>
-                <th className="px-8 py-5 text-xs font-black text-gray-400 uppercase tracking-widest">Điểm RL</th>
-                <th className="px-8 py-5 text-xs font-black text-gray-400 uppercase tracking-widest">Trạng thái</th>
-                <th className="px-8 py-5 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Thao tác</th>
+                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">MSSV</th>
+                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Họ Tên</th>
+                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Lớp</th>
+                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Email</th>
+                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Trạng thái</th>
+                <th className="px-4 py-4 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Hành động</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-8 py-20 text-center">
+                  <td colSpan={6} className="px-4 py-20 text-center">
                     <Loader2 className="h-10 w-10 animate-spin text-blue-600 mx-auto" />
                   </td>
                 </tr>
               ) : filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-8 py-20 text-center text-gray-400 italic">
+                  <td colSpan={6} className="px-4 py-20 text-center text-gray-400 italic">
                     Không tìm thấy sinh viên nào.
                   </td>
                 </tr>
               ) : (
                 filteredStudents.map((student) => (
                   <tr key={student.id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center space-x-4">
-                        <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-lg border border-blue-100 shadow-sm">
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-mono font-bold text-gray-700">{student.profile?.student_id || 'N/A'}</p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-black text-[10px] border border-blue-100 shadow-sm flex-shrink-0">
                           {student.profile?.avatar_url ? (
-                            <img src={student.profile.avatar_url} className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
-                          ) : student.profile?.full_name?.charAt(0)}
+                            <img src={student.profile.avatar_url} className="w-full h-full object-cover rounded-lg" referrerPolicy="no-referrer" />
+                          ) : (student.profile?.full_name?.charAt(0) || '?')}
                         </div>
-                        <div>
-                          <p className="text-sm font-black text-gray-900 group-hover:text-blue-600 transition-colors">
-                            {student.profile?.full_name}
-                          </p>
-                          <p className="text-xs text-gray-400 font-medium">{student.email}</p>
-                        </div>
+                        <p className="text-sm font-black text-gray-900 group-hover:text-blue-600 transition-colors truncate max-w-[120px]" title={student.profile?.full_name || ''}>
+                          {student.profile?.full_name || 'Chưa cập nhật'}
+                        </p>
                       </div>
                     </td>
-                    <td className="px-8 py-5">
-                      <p className="text-sm font-bold text-gray-700">{student.profile?.student_id}</p>
-                      <p className="text-xs text-gray-400 font-medium">{student.profile?.class_name}</p>
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-bold text-gray-700">{student.profile?.class_name || 'N/A'}</p>
                     </td>
-                    <td className="px-8 py-5">
-                      <div className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-600 rounded-xl text-xs font-black">
-                        {student.profile?.training_points || 0}
-                      </div>
+                    <td className="px-4 py-4">
+                      <p className="text-sm text-gray-600 truncate max-w-[180px]" title={student.email}>
+                        {student.email}
+                      </p>
                     </td>
-                    <td className="px-8 py-5">
+                    <td className="px-4 py-4">
                       {student.is_active ? (
                         <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-green-50 text-green-600 border border-green-100 uppercase tracking-wider">
                           Hoạt động
@@ -358,21 +361,21 @@ export const StudentManagement = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-8 py-5 text-right">
-                      <div className="flex items-center justify-end space-x-2">
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex items-center justify-end space-x-1">
                         <button 
                           onClick={() => handleViewDetails(student)}
-                          className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                           title="Xem hồ sơ"
                         >
-                          <Eye className="h-5 w-5" />
+                          <Eye className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => handleToggleActive(student)}
-                          className={`p-2.5 rounded-xl transition-all ${student.is_active ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}
+                          className={`p-1.5 rounded-lg transition-all ${student.is_active ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}
                           title={student.is_active ? 'Khóa tài khoản' : 'Mở khóa'}
                         >
-                          {student.is_active ? <Lock className="h-5 w-5" /> : <Unlock className="h-5 w-5" />}
+                          {student.is_active ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
                         </button>
                       </div>
                     </td>
