@@ -30,7 +30,7 @@ export const StudentManagement = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -310,19 +310,19 @@ const readExcelFile = (file: File): Promise<any[]> => {
     }
   };
 
-   const handleViewDetails = async (student: any) => {
-     try {
-       setIsActionLoading(true);
-       const res = await usersApi.getById(student.id);
-       setSelectedStudent(res.data.data);
-       setIsModalOpen(true);
-     } catch (err) {
-       console.error('Failed to fetch student details', err);
-       toast.error('Không thể tải thông tin chi tiết');
-     } finally {
-       setIsActionLoading(false);
-     }
-   };
+  const handleViewDetails = async (student: any) => {
+    try {
+      setIsActionLoading(true);
+      const res = await usersApi.getStudentDetail(student.id);
+      setSelectedStudent(res.data.data);
+      setIsDetailModalOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch student details', err);
+      toast.error('Không thể tải thông tin chi tiết');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -528,135 +528,157 @@ const readExcelFile = (file: File): Promise<any[]> => {
 
       {/* Student Details Modal */}
       <AnimatePresence>
-        {isModalOpen && selectedStudent && (
+        {isDetailModalOpen && selectedStudent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => setIsDetailModalOpen(false)}
               className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 40 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 40 }}
-              className="relative w-full max-w-4xl bg-white rounded-[48px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+              className="relative w-full max-w-5xl bg-white rounded-[48px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             >
-              <div className="p-10 border-b border-gray-50 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center space-x-4">
-                  <div className="h-16 w-16 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-2xl border-4 border-white shadow-lg">
+              {/* Header */}
+              <div className="p-8 border-b border-gray-50 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center space-x-5">
+                  <div className="h-20 w-20 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-3xl border-4 border-white shadow-lg">
                     {selectedStudent.avatar_url ? (
                       <img src={selectedStudent.avatar_url} className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
-                    ) : selectedStudent.full_name?.charAt(0)}
+                    ) : (selectedStudent.full_name?.charAt(0) || '?')}
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black text-gray-900">{selectedStudent.full_name}</h2>
+                    <h2 className="text-3xl font-black text-gray-900">{selectedStudent.full_name}</h2>
                     <p className="text-sm font-bold text-gray-400">MSSV: {selectedStudent.student_id}</p>
+                    <p className="text-xs font-bold text-gray-400 mt-1">
+                      {selectedStudent.is_active ? (
+                        <span className="text-green-600">Hoạt động</span>
+                      ) : (
+                        <span className="text-red-600">Đã khóa</span>
+                      )}
+                    </p>
                   </div>
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-colors">
+                <button onClick={() => setIsDetailModalOpen(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-colors">
                   <X className="h-6 w-6 text-gray-400" />
                 </button>
               </div>
 
-              <div className="p-10 overflow-y-auto flex-1 space-y-10">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                  {/* Info Cards */}
-                  <div className="space-y-6">
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center">
-                      <GraduationCap className="h-4 w-4 mr-2" />
-                      Thông tin học vấn
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="p-4 bg-gray-50 rounded-2xl">
-                        <p className="text-[10px] font-black text-gray-400 uppercase">Lớp học</p>
-                        <p className="text-sm font-bold text-gray-900">{selectedStudent.class_name || 'N/A'}</p>
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-2xl">
-                        <p className="text-[10px] font-black text-gray-400 uppercase">Khoa</p>
-                        <p className="text-sm font-bold text-gray-900">{selectedStudent.faculty || 'N/A'}</p>
-                      </div>
+              {/* Body */}
+              <div className="p-8 overflow-y-auto flex-1 space-y-8">
+                {/* Part 1 - Personal Info (Grid 2 columns) */}
+                <div>
+                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center">
+                    <GraduationCap className="h-5 w-5 mr-2" />
+                    Thông tin cá nhân
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-gray-50 rounded-2xl">
+                      <p className="text-xs font-black text-gray-400 uppercase">Lớp học</p>
+                      <p className="text-base font-bold text-gray-900">{selectedStudent.class_name || 'N/A'}</p>
                     </div>
-
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center pt-4">
-                      <Phone className="h-4 w-4 mr-2" />
-                      Liên hệ
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="p-4 bg-gray-50 rounded-2xl flex items-center">
-                        <Mail className="h-4 w-4 text-gray-400 mr-3" />
-                        <p className="text-sm font-bold text-gray-900">{selectedStudent.email}</p>
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-2xl flex items-center">
-                        <Phone className="h-4 w-4 text-gray-400 mr-3" />
-                        <p className="text-sm font-bold text-gray-900">{selectedStudent.phone || 'Chưa cập nhật'}</p>
-                      </div>
+                    <div className="p-4 bg-gray-50 rounded-2xl">
+                      <p className="text-xs font-black text-gray-400 uppercase">Khoa</p>
+                      <p className="text-base font-bold text-gray-900">{selectedStudent.faculty || 'N/A'}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-2xl flex items-center">
+                      <Mail className="h-4 w-4 text-gray-400 mr-3" />
+                      <p className="text-sm font-bold text-gray-900 truncate">{selectedStudent.email}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-2xl flex items-center">
+                      <Phone className="h-4 w-4 text-gray-400 mr-3" />
+                      <p className="text-sm font-bold text-gray-900">{selectedStudent.phone || 'Chưa cập nhật'}</p>
                     </div>
                   </div>
+                </div>
 
-                  {/* History & Stats */}
-                  <div className="md:col-span-2 space-y-8">
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="p-6 bg-blue-600 rounded-[32px] text-white shadow-xl shadow-blue-100">
-                        <p className="text-[10px] font-black text-blue-100 uppercase tracking-widest">Điểm rèn luyện</p>
-                        <p className="text-4xl font-black mt-1">{selectedStudent.training_points}</p>
-                      </div>
-                      <div className="p-6 bg-gray-900 rounded-[32px] text-white shadow-xl shadow-gray-100">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sự kiện tham gia</p>
-                        <p className="text-4xl font-black mt-1">{selectedStudent.attended_events_count}</p>
-                      </div>
-                    </div>
+                {/* Part 2 - Event History Table */}
+                <div>
+                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center">
+                    <History className="h-5 w-5 mr-2" />
+                    Lịch sử tham gia sự kiện
+                  </h3>
 
-                    <div className="space-y-6">
-                      <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center">
-                        <History className="h-4 w-4 mr-2" />
-                        Lịch sử tham gia gần đây
-                      </h3>
-                      <div className="space-y-4">
-                        {selectedStudent.recent_events?.length > 0 ? (
-                          selectedStudent.recent_events.map((event: any) => (
-                            <div key={event.id} className="flex items-center p-4 bg-gray-50 rounded-2xl group hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-blue-100">
-                              <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-blue-600 mr-4 shadow-sm">
-                                <CheckCircle2 className="h-5 w-5" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-gray-900 truncate">{event.title}</p>
-                                <p className="text-[10px] text-gray-400 font-bold uppercase">
-                                  {format(new Date(event.start_time), 'dd/MM/yyyy')} • {event.page?.name}
+                  {selectedStudent.participated_events && selectedStudent.participated_events.length > 0 ? (
+                    <div className="overflow-x-auto rounded-xl border border-gray-100">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs">Tên sự kiện</th>
+                            <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs">Ngày tổ chức</th>
+                            <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs">Điểm rèn luyện</th>
+                            <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs">Trạng thái</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {selectedStudent.participated_events.map((item: any) => (
+                            <tr key={item.registration_id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center space-x-3">
+                                  {item.event.banner_url && (
+                                    <img src={item.event.banner_url} alt="" className="h-8 w-8 rounded object-cover" referrerPolicy="no-referrer" />
+                                  )}
+                                  <div>
+                                    <p className="text-sm font-bold text-gray-900 truncate max-w-[300px]" title={item.event.title}>
+                                      {item.event.title}
+                                    </p>
+                                    <p className="text-xs font-bold text-gray-400">{item.event.page?.name}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <p className="text-sm font-bold text-gray-700">
+                                  {format(new Date(item.event.start_time), 'dd/MM/yyyy')}
                                 </p>
-                              </div>
-                              <div className="text-right ml-4">
-                                <p className="text-xs font-black text-blue-600">+{event.training_points}</p>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase">Điểm</p>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-center py-10 bg-gray-50 rounded-[32px] border border-dashed border-gray-200">
-                            <p className="text-sm text-gray-400 italic">Chưa tham gia sự kiện nào.</p>
-                          </div>
-                        )}
-                      </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-black bg-blue-50 text-blue-600 border border-blue-100">
+                                  +{item.event.training_points}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-green-50 text-green-600 border border-green-100 uppercase tracking-wider">
+                                  Đã tham gia
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
+                  ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-[32px] border border-dashed border-gray-200">
+                      <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-sm text-gray-400 italic">Sinh viên chưa tham gia sự kiện nào</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Stats Cards */}
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="p-6 bg-blue-600 rounded-[24px] text-white shadow-lg">
+                    <p className="text-xs font-black text-blue-100 uppercase tracking-widest">Điểm rèn luyện</p>
+                    <p className="text-4xl font-black mt-1">{selectedStudent.training_points}</p>
+                  </div>
+                  <div className="p-6 bg-gray-900 rounded-[24px] text-white shadow-lg">
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Sự kiện đã tham gia</p>
+                    <p className="text-4xl font-black mt-1">{selectedStudent.attended_events_count}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="p-10 border-t border-gray-50 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center space-x-2">
-                  <span className={`h-3 w-3 rounded-full ${selectedStudent.is_active ? 'bg-green-500' : 'bg-red-500'}`} />
-                  <span className="text-sm font-bold text-gray-500">
-                    Tài khoản đang {selectedStudent.is_active ? 'hoạt động' : 'bị khóa'}
-                  </span>
-                </div>
+              {/* Footer */}
+              <div className="p-6 border-t border-gray-50 flex items-center justify-end flex-shrink-0">
                 <Button 
-                  onClick={() => handleToggleActive(selectedStudent)}
-                  variant={selectedStudent.is_active ? 'outline' : 'primary'}
-                  className={`rounded-2xl px-8 py-4 font-bold ${selectedStudent.is_active ? 'border-red-100 text-red-600 hover:bg-red-50' : 'bg-green-600 hover:bg-green-700'}`}
+                  onClick={() => setIsDetailModalOpen(false)}
+                  variant="outline"
+                  className="rounded-2xl px-8 py-3"
                 >
-                  {selectedStudent.is_active ? <Lock className="h-5 w-5 mr-2" /> : <Unlock className="h-5 w-5 mr-2" />}
-                  {selectedStudent.is_active ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                  Đóng
                 </Button>
               </div>
             </motion.div>

@@ -28,8 +28,11 @@ export const usersApi = {
   getTrainingPoints: () =>
     apiClient.get('/users/me/training-points'),
 
-  getById: (id: string) =>
-    apiClient.get(`/users/${id}`),
+    getById: (id: string) =>
+      apiClient.get(`/users/${id}`),
+
+    getStudentDetail: (id: string) =>
+      apiClient.get(`/users/${id}`),
 
    getAll: (params?: { page?: number; limit?: number; search?: string; role?: 'STUDENT' | 'PAGE_ADMIN' | 'SYSTEM_ADMIN' }) =>
      apiClient.get('/users', { params }),
