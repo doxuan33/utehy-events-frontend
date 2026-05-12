@@ -55,11 +55,11 @@ export const Dashboard = () => {
 
 // 1. Get managed page from auth store
         const { user } = useAuthStore.getState();
-        const managedPageId = user?.page_id || user?.managed_page?.id;
-       if (!managedPageId) {
-         setIsLoading(false);
-         return;
-       }
+        const managedPageId = user?.managed_pages?.[0]?.page_id;
+        if (!managedPageId) {
+          setIsLoading(false);
+          return;
+        }
 
        // Fetch the managed page by ID to get the full object
        const pageRes = await pagesApi.getById(managedPageId);

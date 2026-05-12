@@ -3,6 +3,21 @@ import { persist } from 'zustand/middleware';
 
 export type UserRole = 'STUDENT' | 'PAGE_ADMIN' | 'SYSTEM_ADMIN';
 
+export interface ManagedPage {
+  page_id: string;
+  is_owner: boolean;
+  joined_at: string;
+  page: {
+    id: string;
+    name: string;
+    slug: string;
+    avatar_url?: string;
+    cover_url?: string;
+    description?: string;
+    is_verified: boolean;
+  };
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -15,8 +30,7 @@ export interface AuthUser {
   faculty?: string;
   phone?: string;
   bio?: string;
-  managed_page?: { id: string } | null;
-  page_id?: string;
+  managed_pages: ManagedPage[];
 }
 
 interface AuthState {

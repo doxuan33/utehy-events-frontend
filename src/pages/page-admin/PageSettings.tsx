@@ -66,8 +66,8 @@ export const PageSettings = () => {
         return;
       }
 
-      const currentUser = useAuthStore.getState().user;
-      const currentPageId = currentUser?.managed_page?.id || currentUser?.page_id;
+const currentUser = useAuthStore.getState().user;
+       const currentPageId = currentUser?.managed_pages?.[0]?.page_id;
 
       const targetPage = currentPageId
         ? pagesArray.find((p) => p.id === currentPageId) || pagesArray[0]
