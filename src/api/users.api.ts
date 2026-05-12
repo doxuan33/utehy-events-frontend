@@ -34,6 +34,9 @@ export const usersApi = {
    getAll: (params?: { page?: number; limit?: number; search?: string; role?: 'STUDENT' | 'PAGE_ADMIN' | 'SYSTEM_ADMIN' }) =>
      apiClient.get('/users', { params }),
 
-  toggleActive: (id: string) =>
-    apiClient.patch(`/users/${id}/toggle-active`),
-};
+   toggleActive: (id: string) =>
+     apiClient.patch(`/users/${id}/toggle-active`),
+
+   importStudents: (students: any[]) =>
+     apiClient.post('/users/import-students', { students }),
+ };

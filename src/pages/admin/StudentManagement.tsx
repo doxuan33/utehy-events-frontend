@@ -1,13 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usersApi } from '@/api/users.api';
-import { authApi } from '@/api/auth.api';
 import { Button } from '@/components/common/Button';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Users, 
   Search, 
   UserPlus, 
-  Upload, 
+  Upload,
   Download,
   Lock, 
   Unlock, 
@@ -23,12 +21,9 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { DragDropZone } from '@/components/ui/DragDropZone';
-import { apiClient } from '@/api/client';
 
 export const StudentManagement = () => {
   const [students, setStudents] = useState<any[]>([]);
@@ -40,9 +35,11 @@ export const StudentManagement = () => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [parsedStudents, setParsedStudents] = useState<any[]>([]);
   const [importErrors, setImportErrors] = useState<any[]>([]);
   const [selectedFaculty, setSelectedFaculty] = useState('all');
   const [selectedClass, setSelectedClass] = useState('all');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchStudents();
@@ -66,26 +63,133 @@ export const StudentManagement = () => {
      }
    };
 
-  const validateStudentData = (data: any) => {
-    const errors: string[] = [];
-    
-    if (!data.studentId || !/^\d{8}$/.test(data.studentId)) {
-      errors.push('MSSV phải gồm đúng 8 chữ số (VD: 10120001)');
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const isValidType = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv');
+
+    if (!isValidType) {
+      toast.error('Vui lòng tải lên file Excel (.xlsx, .xls) hoặc CSV');
+      return;
     }
-    
-    if (!data.fullName || data.fullName.trim().length < 2) {
-      errors.push('Họ tên phải có ít nhất 2 ký tự');
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File quá lớn. Giới hạn 5MB');
+      return;
     }
-    
-    if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      errors.push('Email không hợp lệ (VD: sv@student.utehy.edu.vn)');
+
+    try {
+      const rawData = await readExcelFile(file);
+      const mappedStudents = mapStudentData(rawData);
+      setParsedStudents(mappedStudents);
+      setSelectedFile(file);
+      setImportErrors([]);
+      setIsImportModalOpen(true);
+    } catch (err: any) {
+      console.error('Failed to parse Excel file', err);
+      toast.error('Không thể đọc file Excel: ' + (err.message || 'Lỗi không xác định'));
     }
-    
-    if (data.phone && !/^(0|\+84)[0-9]{9}$/.test(data.phone)) {
-      errors.push('Số điện thoại không hợp lệ (phải đủ 10 số, bắt đầu bằng 0 hoặc +84)');
+
+    // Reset input value so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
-    
-    return errors;
+  };
+
+  const readExcelFile = (file: File): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          
+          // Read as array of arrays (raw rows)
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[];
+          
+          if (jsonData.length < 2) {
+            reject(new Error('File không có dữ liệu hoặc thiếu header'));
+            return;
+          }
+
+          // First row is header
+          const headers = jsonData[0].map((h: any) => String(h || '').trim().toLowerCase());
+          const students: any[] = [];
+
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            const student: Record<string, any> = {};
+
+            headers.forEach((header: string, index: number) => {
+              student[header] = row[index];
+            });
+
+            students.push(student);
+          }
+
+          resolve(students);
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      reader.onerror = () => reject(new Error('Không thể đọc file'));
+      reader.readAsBinaryString(file);
+    });
+  };
+
+  const mapStudentData = (rawData: any[]): any[] => {
+    return rawData.map((row) => {
+      // Try multiple possible column names
+      const studentId = 
+        row['mssv'] || 
+        row['mã số sinh viên'] || 
+        row['ma so sinh vien'] ||
+        row['student_id'] ||
+        row['stt'] ||
+        '';
+
+      const fullName = 
+        row['họ tên'] || 
+        row['ho ten'] || 
+        row['họ và tên'] ||
+        row['ho va ten'] ||
+        row['full_name'] ||
+        row['tên'] ||
+        '';
+
+      const className = 
+        row['lớp'] || 
+        row['lop'] || 
+        row['class_name'] ||
+        row['class'] ||
+        row['lớp học'] ||
+        '';
+
+      const faculty = 
+        row['khoa'] || 
+        row['khoa'] || 
+        row['faculty'] ||
+        row['tên khoa'] ||
+        '';
+
+      const email = row['email'] || row['địa chỉ email'] || row['email address'] || '';
+      const phone = row['số điện thoại'] || row['so dien thoai'] || row['sdt'] || row['phone'] || row['điện thoại'] || '';
+
+      return {
+        student_id: String(studentId || '').trim(),
+        full_name: String(fullName || '').trim(),
+        class_name: String(className || '').trim() || null,
+        faculty: String(faculty || '').trim() || null,
+        email: String(email || '').trim().toLowerCase() || null,
+        phone: String(phone || '').trim() || null,
+      };
+    });
   };
 
   const faculties = ['all', ...new Set(students.map(s => s.profile?.faculty).filter(Boolean))];
@@ -98,46 +202,66 @@ export const StudentManagement = () => {
   });
 
   const handleImportSubmit = async () => {
-    if (!selectedFile) return;
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+    if (parsedStudents.length === 0) return;
 
     setIsImporting(true);
     setImportErrors([]);
 
     try {
-      const res = await apiClient.post('/users/import-students', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const response = await usersApi.importStudents({ 
+        students: parsedStudents.map(s => ({
+          student_id: s.student_id,
+          full_name: s.full_name,
+          class_name: s.class_name || undefined,
+          faculty: s.faculty || undefined,
+          email: s.email || undefined,
+          phone: s.phone || undefined,
+        }))
       });
 
-      const { errors = [], success = 0 } = res.data?.data || {};
-      
+      const result = response.data?.data;
+      const successCount = result?.success || 0;
+      const failedCount = result?.failed || 0;
+      const errors = result?.errors || [];
+
       if (errors && errors.length > 0) {
         setImportErrors(errors.map((err: any) => ({
           row: err.row || err.line,
-          studentId: err.studentId || err.mssv || 'N/A',
-          message: err.message || err.error || 'Lỗi không xác định'
+          studentId: err.student_id || 'N/A',
+          message: err.message || err.error || 'Lỗi không xác định',
         })));
-        
-        if (success > 0) {
-          toast.success(`Đã import ${success} sinh viên thành công!`);
+
+        if (successCount > 0) {
+          toast.success(`Import hoàn tất. Thành công: ${successCount}, Lỗi: ${failedCount}`);
           fetchStudents();
+        } else {
+          toast.error(`Import thất bại. Tất cả ${failedCount} dòng đều lỗi.`);
         }
       } else {
-        toast.success('Import thành công! Tất cả sinh viên đã được tạo tài khoản.');
-        setIsImportModalOpen(false);
-        setSelectedFile(null);
+        toast.success(`Import thành công! Đã thêm ${successCount} sinh viên.`);
+        handleCloseImportModal();
         fetchStudents();
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Lỗi khi import file';
+      const errorMessage = err.response?.data?.message || err.message || 'Lỗi khi import';
       toast.error(errorMessage);
     } finally {
       setIsImporting(false);
     }
+  };
+
+  const handleClearFile = () => {
+    setSelectedFile(null);
+    setParsedStudents([]);
+    setImportErrors([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCloseImportModal = () => {
+    handleClearFile();
+    setIsImportModalOpen(false);
   };
 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -202,7 +326,7 @@ export const StudentManagement = () => {
         <div className="flex items-center space-x-3">
           <Button 
             variant="outline" 
-            onClick={() => setIsImportModalOpen(true)}
+            onClick={() => fileInputRef.current?.click()}
             className="rounded-2xl px-6 py-4 flex items-center space-x-2 border-blue-100 text-blue-600 hover:bg-blue-50"
           >
             <Upload className="h-5 w-5" />
@@ -526,156 +650,190 @@ export const StudentManagement = () => {
       </AnimatePresence>
 
       {/* Import Modal */}
-        <AnimatePresence>
-          {isImportModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => !isImporting && setIsImportModalOpen(false)}
-                className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
-              />
+      <AnimatePresence>
+        {isImportModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !isImporting && handleCloseImportModal()}
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
+            />
               <motion.div
                 initial={{ opacity: 0, scale: 0.9, y: 40 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 40 }}
-                className="relative w-full max-w-2xl bg-white rounded-[48px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                className="relative w-full max-w-3xl bg-white rounded-[48px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
               >
-                <div className="p-10 border-b border-gray-50 text-center flex-shrink-0">
-                  <div className="h-20 w-20 bg-blue-50 rounded-[32px] flex items-center justify-center mx-auto mb-6 text-blue-600">
-                    <FileSpreadsheet className="h-10 w-10" />
+                {isImporting && (
+                  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
+                    <div className="flex flex-col items-center space-y-4">
+                      <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+                      <p className="text-sm font-black text-gray-700">Đang import sinh viên...</p>
+                    </div>
                   </div>
-                  <h2 className="text-2xl font-black text-gray-900">Nhập danh sách sinh viên</h2>
-                  <p className="text-sm font-bold text-gray-400 mt-2">Tải lên file Excel để import hàng loạt qua API Backend.</p>
+                )}
+              <div className="p-10 border-b border-gray-50 text-center flex-shrink-0">
+                <div className="h-20 w-20 bg-blue-50 rounded-[32px] flex items-center justify-center mx-auto mb-6 text-blue-600">
+                  <FileSpreadsheet className="h-10 w-10" />
                 </div>
+                <h2 className="text-2xl font-black text-gray-900">Nhập danh sách sinh viên</h2>
+                <p className="text-sm font-bold text-gray-400 mt-2">Chọn file Excel hoặc CSV chứa danh sách sinh viên.</p>
+              </div>
 
                 <div className="p-10 space-y-6 overflow-y-auto flex-1">
-                  {/* Drag & Drop Zone */}
-                  <DragDropZone
-                    onFileSelect={(file) => setSelectedFile(file)}
-                    selectedFile={selectedFile}
-                    onClear={() => {
-                      setSelectedFile(null);
-                      setImportErrors([]);
-                    }}
-                    disabled={isImporting}
-                  />
-
-                  {/* Error Display (Glassmorphism) */}
-                  {importErrors.length > 0 && (
+                  {/* File Info - click to change file */}
+                  {selectedFile && (
                     <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-3"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 bg-blue-50/50 border border-blue-100/50 rounded-2xl cursor-pointer hover:bg-blue-50/70 transition-colors"
+                      onClick={() => !isImporting && fileInputRef.current?.click()}
                     >
-                      <div className="glassmorphism border-l-4 border-l-yellow-500">
-                        <div className="p-4">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
-                            <h3 className="text-sm font-black text-yellow-700 uppercase tracking-wider">
-                              {importErrors.length} dòng bị lỗi
-                            </h3>
-                          </div>
-                          
-                          {/* Error summary */}
-                          <div className="bg-yellow-50/50 backdrop-blur-sm rounded-xl p-3 mb-3">
-                            <p className="text-xs font-bold text-yellow-700">
-                              Tổng cộng {importErrors.length} sinh viên có lỗi cần kiểm tra
-                            </p>
-                          </div>
-
-                          {/* Error table */}
-                          <div className="max-h-48 overflow-y-auto border border-yellow-100/50 rounded-xl">
-                            <table className="w-full text-xs">
-                              <thead className="bg-yellow-100/50 border-b border-yellow-100/50 sticky top-0">
-                                <tr>
-                                  <th className="px-3 py-2 text-left font-black text-yellow-800">Dòng</th>
-                                  <th className="px-3 py-2 text-left font-black text-yellow-800">MSSV</th>
-                                  <th className="px-3 py-2 text-left font-black text-yellow-800">Lỗi</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-yellow-100/30">
-                                {importErrors.map((err, idx) => (
-                                  <tr key={idx} className="hover:bg-yellow-50/30 transition-colors">
-                                    <td className="px-3 py-2 font-bold text-gray-700">
-                                      {err.row || idx + 1}
-                                    </td>
-                                    <td className="px-3 py-2 text-gray-600">
-                                      {err.studentId || 'N/A'}
-                                    </td>
-                                    <td className="px-3 py-2 text-red-600 font-bold">
-                                      {err.message}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-400/20 via-emerald-400/20 to-blue-500/20 flex items-center justify-center">
+                          <FileSpreadsheet className="h-5 w-5 text-yellow-600" />
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-blue-900 truncate">{selectedFile.name}</p>
+                          <p className="text-xs font-bold text-blue-500">
+                            {parsedStudents.length} sinh viên sẵn sàng import • Nhấn để đổi file
+                          </p>
+                        </div>
+                        {!isImporting && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleClearFile();
+                            }}
+                            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <X className="h-4 w-4 text-red-500" />
+                          </button>
+                        )}
                       </div>
                     </motion.div>
                   )}
 
-                  {selectedFile && !isImporting && importErrors.length === 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-4 bg-blue-50/50 border border-blue-100/50 rounded-2xl"
-                    >
-                      <p className="text-xs font-bold text-blue-700 mb-1">
-                        <FileSpreadsheet className="h-3 w-3 inline mr-1" />
-                        File đã chọn
-                      </p>
-                      <p className="text-sm font-black text-blue-900 truncate">
-                        {selectedFile.name}
-                      </p>
-                      <p className="text-xs font-bold text-blue-500">
-                        Kích thước: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </motion.div>
-                  )}
-                </div>
+                {/* Preview Table (show first 5 rows) */}
+                {parsedStudents.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                      Xem trước ({Math.min(parsedStudents.length, 5)}/{parsedStudents.length} dòng)
+                    </p>
+                    <div className="overflow-x-auto rounded-xl border border-gray-100">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-black text-gray-600">MSSV</th>
+                            <th className="px-3 py-2 text-left font-black text-gray-600">Họ tên</th>
+                            <th className="px-3 py-2 text-left font-black text-gray-600">Lớp</th>
+                            <th className="px-3 py-2 text-left font-black text-gray-600">Khoa</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {parsedStudents.slice(0, 5).map((student, idx) => (
+                            <tr key={idx} className="hover:bg-gray-25">
+                              <td className="px-3 py-2 font-mono text-gray-700">{student.student_id}</td>
+                              <td className="px-3 py-2 text-gray-700">{student.full_name}</td>
+                              <td className="px-3 py-2 text-gray-600">{student.class_name || '-'}</td>
+                              <td className="px-3 py-2 text-gray-600">{student.faculty || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
-                <div className="p-10 border-t border-gray-50 flex-shrink-0 space-y-3">
-                  <Button
-                    onClick={handleImportSubmit}
-                    disabled={!selectedFile || isImporting}
-                    className="w-full py-5 rounded-2xl font-black text-lg relative overflow-hidden group"
-                    variant="primary"
+                {/* Error Display */}
+                {importErrors.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3"
                   >
-                    <span className="flex items-center justify-center space-x-2">
-                      {isImporting ? (
-                        <>
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                          <span>Đang xử lý...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-5 w-5" />
-                          <span>Xác nhận Import</span>
-                        </>
-                      )}
-                    </span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 via-emerald-400/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </Button>
-                  <button
-                    onClick={() => {
-                      setIsImportModalOpen(false);
-                      setSelectedFile(null);
-                      setImportErrors([]);
-                    }}
-                    disabled={isImporting}
-                    className="w-full py-3 rounded-2xl font-bold text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Hủy bỏ
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+                    <div className="rounded-2xl border-l-4 border-l-red-500 bg-red-50/50 p-4">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                        <h3 className="text-sm font-black text-red-700 uppercase tracking-wider">
+                          {importErrors.length} dòng bị lỗi
+                        </h3>
+                      </div>
+                      
+                      <p className="text-xs font-bold text-red-600 mb-3">
+                        Các dòng có lỗi sẽ không được import. Vui lòng kiểm tra lại dữ liệu.
+                      </p>
+
+                      <div className="max-h-48 overflow-y-auto border border-red-100/50 rounded-xl">
+                        <table className="w-full text-xs">
+                          <thead className="bg-red-100/50 border-b border-red-100/50 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-black text-red-800">Dòng</th>
+                              <th className="px-3 py-2 text-left font-black text-red-800">MSSV</th>
+                              <th className="px-3 py-2 text-left font-black text-red-800">Lỗi</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-red-100/30">
+                            {importErrors.map((err, idx) => (
+                              <tr key={idx} className="hover:bg-red-50/30 transition-colors">
+                                <td className="px-3 py-2 font-bold text-gray-700">{err.row}</td>
+                                <td className="px-3 py-2 text-gray-600">{err.studentId}</td>
+                                <td className="px-3 py-2 text-red-600 font-bold">{err.message}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-gray-50 flex-shrink-0 flex items-center justify-end space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={handleCloseImportModal}
+                  disabled={isImporting}
+                  className="rounded-2xl px-6 py-3"
+                >
+                  Hủy bỏ
+                </Button>
+                <Button
+                  onClick={handleImportSubmit}
+                  disabled={parsedStudents.length === 0 || isImporting}
+                  className="rounded-2xl px-8 py-3 relative overflow-hidden group"
+                >
+                  <span className="flex items-center space-x-2">
+                    {isImporting ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Đang import...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-5 w-5" />
+                        <span>Import {parsedStudents.length} sinh viên</span>
+                      </>
+                    )}
+                  </span>
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xls,.csv"
+        onChange={handleFileChange}
+        className="hidden"
+      />
 
       <ConfirmDialog
         isOpen={showConfirmDialog}
