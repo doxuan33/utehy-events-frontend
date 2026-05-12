@@ -144,52 +144,17 @@ export const StudentManagement = () => {
   };
 
   const mapStudentData = (rawData: any[]): any[] => {
-    return rawData.map((row) => {
-      // Try multiple possible column names
-      const studentId = 
-        row['mssv'] || 
-        row['mã số sinh viên'] || 
-        row['ma so sinh vien'] ||
-        row['student_id'] ||
-        row['stt'] ||
-        '';
+    const mapped = rawData.map((row) => ({
+      student_id: row['MSSV'] ? String(row['MSSV']).trim() : '',
+      full_name: row['HoTen'] ? String(row['HoTen']).trim() : '',
+      class_name: row['Lop'] ? String(row['Lop']).trim() : '',
+      faculty: row['Khoa'] ? String(row['Khoa']).trim() : '',
+      phone: row['SoDienThoai'] ? String(row['SoDienThoai']).trim() : '',
+      email: row['Email'] ? String(row['Email']).trim().toLowerCase() : '',
+    }));
 
-      const fullName = 
-        row['họ tên'] || 
-        row['ho ten'] || 
-        row['họ và tên'] ||
-        row['ho va ten'] ||
-        row['full_name'] ||
-        row['tên'] ||
-        '';
-
-      const className = 
-        row['lớp'] || 
-        row['lop'] || 
-        row['class_name'] ||
-        row['class'] ||
-        row['lớp học'] ||
-        '';
-
-      const faculty = 
-        row['khoa'] || 
-        row['khoa'] || 
-        row['faculty'] ||
-        row['tên khoa'] ||
-        '';
-
-      const email = row['email'] || row['địa chỉ email'] || row['email address'] || '';
-      const phone = row['số điện thoại'] || row['so dien thoai'] || row['sdt'] || row['phone'] || row['điện thoại'] || '';
-
-      return {
-        student_id: String(studentId || '').trim(),
-        full_name: String(fullName || '').trim(),
-        class_name: String(className || '').trim() || null,
-        faculty: String(faculty || '').trim() || null,
-        email: String(email || '').trim().toLowerCase() || null,
-        phone: String(phone || '').trim() || null,
-      };
-    });
+    // Filter out rows with missing required fields
+    return mapped.filter(s => s.student_id && s.full_name);
   };
 
   const faculties = ['all', ...new Set(students.map(s => s.profile?.faculty).filter(Boolean))];
@@ -208,8 +173,8 @@ export const StudentManagement = () => {
     setImportErrors([]);
 
     try {
-      const response = await usersApi.importStudents({ 
-        students: parsedStudents.map(s => ({
+      const response = await usersApi.importStudents(
+        parsedStudents.map(s => ({
           student_id: s.student_id,
           full_name: s.full_name,
           class_name: s.class_name || undefined,
@@ -217,7 +182,7 @@ export const StudentManagement = () => {
           email: s.email || undefined,
           phone: s.phone || undefined,
         }))
-      });
+      );
 
       const result = response.data?.data;
       const successCount = result?.success || 0;
