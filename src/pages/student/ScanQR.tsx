@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+// ĐÃ CHỈNH SỬA: Import Html5Qrcode thay vì Html5QrcodeScanner
+import { Html5Qrcode } from 'html5-qrcode';
 import { checkinApi } from '@/api/checkin.api';
 import { Button } from '@/components/common/Button';
 import { motion, AnimatePresence } from 'motion/react';
@@ -28,39 +29,59 @@ export const ScanQR = () => {
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
   const [gpsStatus, setGpsStatus] = useState<'connecting' | 'ready' | 'checking'>('connecting');
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  
+  // ĐÃ CHỈNH SỬA: Định dạng kiểu cho ref là Html5Qrcode
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
-  // QR Scanner Logic
-  const startScanner = () => {
+  // ĐÃ CHỈNH SỬA: Hàm dừng và dọn dẹp camera
+  const stopCamera = async () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+      } catch (err) {
+        console.error("Failed to stop camera", err);
+      }
+    }
+  };
+
+  // QR Scanner Logic - SỬ DỤNG CLASS CORE ĐỂ MỞ CAMERA TRỰC TIẾP
+  const startScanner = async () => {
     setStatus('scanning');
-    setTimeout(() => {
-      const scanner = new Html5QrcodeScanner(
-        "reader",
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0
-        },
-        false
-      );
+    
+    // Đợi 1 chút để DOM render xong thẻ div #reader
+    setTimeout(async () => {
+      try {
+        const html5QrCode = new Html5Qrcode("reader");
+        scannerRef.current = html5QrCode;
 
-      scanner.render(onScanSuccess, onScanFailure);
-      scannerRef.current = scanner;
-    }, 100);
+        // Bắt đầu stream camera trực tiếp (ưu tiên camera sau)
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          onScanSuccess,
+          onScanFailure
+        );
+      } catch (err) {
+        console.error("Lỗi mở camera:", err);
+        setStatus('error');
+        setMessage('Không thể mở Camera. Vui lòng kiểm tra quyền truy cập trên trình duyệt của bạn.');
+      }
+    }, 200);
   };
 
   const onScanSuccess = async (decodedText: string) => {
+    // Chặn quét nhiều lần cùng lúc
     if (status === 'processing') return;
-
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.clear();
-      } catch (err) {
-        console.error("Failed to clear scanner", err);
-      }
-    }
-
     setStatus('processing');
+
+    // Tắt camera ngay khi quét thành công
+    await stopCamera();
+
     try {
       const res = await checkinApi.scanQr({ token: decodedText });
       setStatus('success');
@@ -77,9 +98,6 @@ export const ScanQR = () => {
   };
 
   const resetScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear().catch(console.error);
-    }
     setStatus('idle');
     setMessage('');
     startScanner();
@@ -93,7 +111,6 @@ export const ScanQR = () => {
     // Simulate GPS verification
     setTimeout(async () => {
       try {
-        // Mock GPS checkin - would call checkinApi.gpsCheckin() in real impl
         setStatus('success');
         setMessage('Điểm danh GPS thành công!');
         triggerConfetti();
@@ -133,19 +150,27 @@ export const ScanQR = () => {
   // Cleanup scanner on unmount
   useEffect(() => {
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
-      }
+      stopCamera();
     };
   }, []);
 
-  // ĐÃ CHỈNH SỬA: Tự động gọi startScanner() để mở camera luôn thay vì đợi user click
+  // Tự động mở camera khi ở tab QR và trạng thái đang là idle
   useEffect(() => {
     if (activeTab === 'qr' && status === 'idle') {
       startScanner();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, status]);
+
+  // Xử lý chuyển tab an toàn (tắt camera nếu chuyển sang GPS)
+  const handleTabSwitch = async (tab: TabMode) => {
+    if (tab === 'gps') {
+      await stopCamera();
+    }
+    setActiveTab(tab);
+    setStatus('idle');
+    setMessage('');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 py-8 px-4 font-sans">
@@ -166,7 +191,7 @@ export const ScanQR = () => {
         {/* Tab Switcher */}
         <div className="bg-white rounded-2xl p-1.5 flex shadow-sm border border-green-100">
           <button
-            onClick={() => { setActiveTab('qr'); setStatus('idle'); setMessage(''); }}
+            onClick={() => handleTabSwitch('qr')}
             className={`flex-1 flex items-center justify-center space-x-2 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${
               activeTab === 'qr'
                 ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-md transform scale-[1.02]'
@@ -177,7 +202,7 @@ export const ScanQR = () => {
             <span>Quét mã QR</span>
           </button>
           <button
-            onClick={() => { setActiveTab('gps'); setStatus('idle'); setMessage(''); }}
+            onClick={() => handleTabSwitch('gps')}
             className={`flex-1 flex items-center justify-center space-x-2 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${
               activeTab === 'gps'
                 ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-md transform scale-[1.02]'
@@ -200,7 +225,7 @@ export const ScanQR = () => {
                 exit={{ opacity: 0, y: -15 }}
                 className="space-y-6"
               >
-                {/* Idle State (Dự phòng nếu camera chưa mở được ngay) */}
+                {/* Idle State - Hiển thị chớp nhoáng trong lúc xin quyền Camera */}
                 {status === 'idle' && (
                   <div className="bg-white rounded-3xl shadow-sm border border-green-100 p-8 text-center">
                     <motion.div
@@ -210,37 +235,23 @@ export const ScanQR = () => {
                       className="relative"
                     >
                       <div className="relative w-64 h-64 mx-auto mb-8 bg-gray-50 rounded-3xl overflow-hidden shadow-inner border border-green-50">
-                        <div className="absolute inset-4">
-                          <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-green-500 rounded-tl-xl" />
-                          <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-green-500 rounded-tr-xl" />
-                          <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-green-500 rounded-bl-xl" />
-                          <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-green-500 rounded-br-xl" />
-                        </div>
                         <div className="absolute inset-0 flex items-center justify-center">
                           <Loader2 className="w-10 h-10 text-green-400 animate-spin" />
                         </div>
                       </div>
-                      <p className="text-sm text-gray-500 max-w-sm mx-auto">
+                      <p className="text-sm text-gray-500 max-w-sm mx-auto animate-pulse">
                         Đang khởi động Camera... Vui lòng cấp quyền truy cập.
                       </p>
                     </motion.div>
-
-                    <Button
-                      onClick={startScanner}
-                      className="w-full py-5 text-lg rounded-xl shadow-md bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white transition-all duration-300 transform hover:-translate-y-0.5 mt-6"
-                    >
-                      <Scan className="h-5 w-5 mr-2" />
-                      Mở lại Camera
-                    </Button>
                   </div>
                 )}
 
                 {/* Scanning State - Custom Scanner UI */}
-                {status === 'scanning' && (
+                <div className={`${status === 'scanning' ? 'block' : 'hidden'}`}>
                   <div className="bg-white rounded-3xl shadow-lg border border-green-100 p-3">
                     <div className="bg-gray-950 rounded-2xl overflow-hidden relative shadow-inner">
-                      <div className="relative aspect-square">
-                        {/* Video Preview */}
+                      <div className="relative aspect-square [&>div]:!border-none">
+                        {/* Video Preview: Thư viện sẽ nhúng thẻ <video> trực tiếp vào div này */}
                         <div id="reader" className="w-full h-full object-cover" />
 
                         {/* Overlay Frame */}
@@ -283,7 +294,7 @@ export const ScanQR = () => {
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* Processing State */}
                 {status === 'processing' && (
@@ -366,6 +377,7 @@ export const ScanQR = () => {
               </motion.div>
             )}
 
+            {/* PHẦN GPS CODE GIỮ NGUYÊN HOÀN TOÀN NHƯ CŨ CỦA BẠN */}
             {activeTab === 'gps' && (
               <motion.div
                 key="gps-mode"
