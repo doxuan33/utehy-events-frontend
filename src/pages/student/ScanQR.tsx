@@ -139,446 +139,441 @@ export const ScanQR = () => {
     };
   }, []);
 
-  // Reset scanner when tab switches to QR
+  // ĐÃ CHỈNH SỬA: Tự động gọi startScanner() để mở camera luôn thay vì đợi user click
   useEffect(() => {
     if (activeTab === 'qr' && status === 'idle') {
-      // Don't auto-start, wait for user action
+      startScanner();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   return (
-    <div className="max-w-2xl mx-auto py-6 px-4 min-h-screen">
-      {/* Header */}
-      <div className="mb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center text-gray-500 hover:text-emerald-600 transition-colors mb-4"
-        >
-          <ArrowLeft className="h-5 w-5 mr-2" />
-          <span className="font-medium">Quay lại</span>
-        </button>
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-1">Điểm danh sự kiện</h1>
-        <p className="text-gray-500 font-medium">Quét mã QR hoặc xác nhận vị trí để điểm danh</p>
-      </div>
-
-      {/* Tab Switcher */}
-      <div className="bg-gray-100 rounded-2xl p-1 flex mb-6">
-        <button
-          onClick={() => { setActiveTab('qr'); setStatus('idle'); setMessage(''); }}
-          className={`flex-1 flex items-center justify-center space-x-2 py-3.5 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'qr'
-              ? 'bg-white text-emerald-600 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <Camera className="h-4 w-4" />
-          <span>Quét mã QR</span>
-        </button>
-        <button
-          onClick={() => { setActiveTab('gps'); setStatus('idle'); setMessage(''); }}
-          className={`flex-1 flex items-center justify-center space-x-2 py-3.5 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'gps'
-              ? 'bg-white text-emerald-600 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <MapPin className="h-4 w-4" />
-          <span>Điểm danh GPS</span>
-        </button>
-      </div>
-
-      {/* Content Area */}
-      <AnimatePresence mode="wait">
-        {activeTab === 'qr' && (
-          <motion.div
-            key="qr-mode"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 py-8 px-4 font-sans">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-white/60 backdrop-blur-md rounded-2xl p-6 shadow-sm border border-green-100/50 mb-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center text-gray-500 hover:text-green-600 transition-colors mb-4 group"
           >
-            {/* Idle State */}
-            {status === 'idle' && (
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 text-center">
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="relative"
-                >
-                  {/* Scanner Frame */}
-                  <div className="relative w-64 h-64 mx-auto mb-8">
-                    {/* Outer Dark Frame */}
-                    <div className="absolute inset-0 bg-gray-950 rounded-3xl shadow-2xl" />
+            <ArrowLeft className="h-5 w-5 mr-2 group-hover:-translate-x-1 transition-transform" />
+            <span className="font-medium">Quay lại</span>
+          </button>
+          <h1 className="text-3xl font-black text-green-900 tracking-tight mb-2">Điểm danh sự kiện</h1>
+          <p className="text-green-700/70 font-medium">Hệ thống nhận diện thông minh & định vị GPS</p>
+        </div>
 
-                    {/* Target Brackets - 4 Corners */}
-                    <div className="absolute inset-4">
-                      {/* Top-left */}
-                      <div className="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-emerald-500 rounded-tl-lg" />
-                      {/* Top-right */}
-                      <div className="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-emerald-500 rounded-tr-lg" />
-                      {/* Bottom-left */}
-                      <div className="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-emerald-500 rounded-bl-lg" />
-                      {/* Bottom-right */}
-                      <div className="absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 border-emerald-500 rounded-br-lg" />
-                    </div>
+        {/* Tab Switcher */}
+        <div className="bg-white rounded-2xl p-1.5 flex shadow-sm border border-green-100">
+          <button
+            onClick={() => { setActiveTab('qr'); setStatus('idle'); setMessage(''); }}
+            className={`flex-1 flex items-center justify-center space-x-2 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+              activeTab === 'qr'
+                ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-md transform scale-[1.02]'
+                : 'text-gray-500 hover:bg-green-50 hover:text-green-700'
+            }`}
+          >
+            <Camera className="h-4 w-4" />
+            <span>Quét mã QR</span>
+          </button>
+          <button
+            onClick={() => { setActiveTab('gps'); setStatus('idle'); setMessage(''); }}
+            className={`flex-1 flex items-center justify-center space-x-2 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+              activeTab === 'gps'
+                ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-md transform scale-[1.02]'
+                : 'text-gray-500 hover:bg-green-50 hover:text-green-700'
+            }`}
+          >
+            <MapPin className="h-4 w-4" />
+            <span>Điểm danh GPS</span>
+          </button>
+        </div>
 
-                    {/* Center Target */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-48 h-48 border-2 border-dashed border-emerald-500/30 rounded-2xl" />
-                    </div>
-
-                    {/* Laser Scanner Line */}
+        {/* Content Area */}
+        <div className="relative">
+          <AnimatePresence mode="wait">
+            {activeTab === 'qr' && (
+              <motion.div
+                key="qr-mode"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="space-y-6"
+              >
+                {/* Idle State (Dự phòng nếu camera chưa mở được ngay) */}
+                {status === 'idle' && (
+                  <div className="bg-white rounded-3xl shadow-sm border border-green-100 p-8 text-center">
                     <motion.div
-                      className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-lg shadow-emerald-500/50"
-                      animate={{ y: [0, 250, 0] }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "linear"
-                      }}
-                    />
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.5 }}
+                      className="relative"
+                    >
+                      <div className="relative w-64 h-64 mx-auto mb-8 bg-gray-50 rounded-3xl overflow-hidden shadow-inner border border-green-50">
+                        <div className="absolute inset-4">
+                          <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-green-500 rounded-tl-xl" />
+                          <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-green-500 rounded-tr-xl" />
+                          <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-green-500 rounded-bl-xl" />
+                          <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-green-500 rounded-br-xl" />
+                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Loader2 className="w-10 h-10 text-green-400 animate-spin" />
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-500 max-w-sm mx-auto">
+                        Đang khởi động Camera... Vui lòng cấp quyền truy cập.
+                      </p>
+                    </motion.div>
 
-                    {/* Corner Glow Effects */}
-                    <div className="absolute top-2 left-2 w-16 h-16 bg-emerald-500/10 blur-xl rounded-full" />
-                    <div className="absolute bottom-2 right-2 w-16 h-16 bg-emerald-500/10 blur-xl rounded-full" />
+                    <Button
+                      onClick={startScanner}
+                      className="w-full py-5 text-lg rounded-xl shadow-md bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white transition-all duration-300 transform hover:-translate-y-0.5 mt-6"
+                    >
+                      <Scan className="h-5 w-5 mr-2" />
+                      Mở lại Camera
+                    </Button>
                   </div>
+                )}
 
-                  {/* Caption */}
-                  <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                    Hãy đưa mã QR vào vùng nhận diện để điểm danh nhanh chóng.
-                  </p>
-                </motion.div>
+                {/* Scanning State - Custom Scanner UI */}
+                {status === 'scanning' && (
+                  <div className="bg-white rounded-3xl shadow-lg border border-green-100 p-3">
+                    <div className="bg-gray-950 rounded-2xl overflow-hidden relative shadow-inner">
+                      <div className="relative aspect-square">
+                        {/* Video Preview */}
+                        <div id="reader" className="w-full h-full object-cover" />
 
-                <Button
-                  onClick={startScanner}
-                  className="w-full py-5 text-lg rounded-2xl shadow-lg shadow-emerald-100 bg-emerald-500 hover:bg-emerald-600 mt-6"
-                >
-                  <Scan className="h-5 w-5 mr-2" />
-                  Bắt đầu quét mã
-                </Button>
-              </div>
-            )}
+                        {/* Overlay Frame */}
+                        <div className="absolute inset-0 pointer-events-none">
+                          {/* Dark vignette */}
+                          <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" style={{ maskImage: 'radial-gradient(circle, transparent 45%, black 50%)', WebkitMaskImage: 'radial-gradient(circle, transparent 45%, black 50%)' }} />
 
-            {/* Scanning State - Custom Scanner UI */}
-            {status === 'scanning' && (
-              <div className="bg-gray-950 rounded-3xl shadow-2xl overflow-hidden">
-                <div className="relative aspect-square">
-                  {/* Video Preview */}
-                  <div id="reader" className="w-full h-full" />
+                          {/* Target Brackets */}
+                          <div className="absolute inset-10">
+                            <div className="absolute top-0 left-0 w-14 h-14 border-l-4 border-t-4 border-green-400 rounded-tl-2xl shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
+                            <div className="absolute top-0 right-0 w-14 h-14 border-r-4 border-t-4 border-green-400 rounded-tr-2xl shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
+                            <div className="absolute bottom-0 left-0 w-14 h-14 border-l-4 border-b-4 border-green-400 rounded-bl-2xl shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
+                            <div className="absolute bottom-0 right-0 w-14 h-14 border-r-4 border-b-4 border-green-400 rounded-br-2xl shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
+                          </div>
 
-                  {/* Overlay Frame */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    {/* Dark vignette */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/60" />
+                          {/* Center Crosshair */}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-70">
+                            <div className="w-20 h-20 flex items-center justify-center">
+                              <div className="w-full h-[1px] bg-green-400" />
+                              <div className="absolute w-[1px] h-full bg-green-400" />
+                              <div className="absolute w-4 h-4 border border-green-400 rounded-full" />
+                            </div>
+                          </div>
 
-                    {/* Target Brackets */}
-                    <div className="absolute inset-8">
-                      <div className="absolute top-0 left-0 w-12 h-12 border-l-4 border-t-4 border-emerald-500 rounded-tl-2xl" />
-                      <div className="absolute top-0 right-0 w-12 h-12 border-r-4 border-t-4 border-emerald-500 rounded-tr-2xl" />
-                      <div className="absolute bottom-0 left-0 w-12 h-12 border-l-4 border-b-4 border-emerald-500 rounded-bl-2xl" />
-                      <div className="absolute bottom-0 right-0 w-12 h-12 border-r-4 border-b-4 border-emerald-500 rounded-br-2xl" />
-                    </div>
+                          {/* Laser Scanner */}
+                          <motion.div
+                            className="absolute left-10 right-10 h-0.5 bg-green-400 shadow-[0_0_20px_rgba(74,222,128,1)]"
+                            animate={{ y: [40, 320, 40] }}
+                            transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                          />
 
-                    {/* Center Crosshair */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-16 h-16 flex items-center justify-center">
-                        <div className="w-full h-0.5 bg-emerald-500/50" />
-                        <div className="absolute w-0.5 h-full bg-emerald-500/50" />
-                        <div className="absolute w-3 h-3 border-2 border-emerald-500 rounded-full" />
+                          {/* Status Text */}
+                          <div className="absolute bottom-6 left-0 right-0 text-center">
+                            <span className="text-green-50 font-medium text-sm bg-black/60 backdrop-blur-md px-5 py-2.5 rounded-full border border-green-500/30 flex items-center justify-center w-max mx-auto shadow-lg">
+                              <Scan className="w-4 h-4 mr-2 animate-pulse text-green-400" />
+                              Đưa mã QR vào khung hình
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  </div>
+                )}
 
-                    {/* Laser Scanner */}
+                {/* Processing State */}
+                {status === 'processing' && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="bg-white rounded-3xl shadow-sm border border-green-100 p-16 text-center"
+                  >
                     <motion.div
-                      className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-lg"
-                      animate={{ y: [100, 300, 100] }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "linear"
-                      }}
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                      className="w-20 h-20 mx-auto mb-8 rounded-full border-4 border-green-100 border-t-green-500 shadow-lg shadow-green-100/50"
                     />
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">Đang phân tích dữ liệu...</h3>
+                    <p className="text-sm text-gray-500">Hệ thống đang mã hóa và đối soát</p>
+                  </motion.div>
+                )}
 
-                    {/* Status Text */}
-                    <div className="absolute bottom-8 left-0 right-0 text-center">
-                      <p className="text-white font-medium text-sm bg-black/50 inline-block px-4 py-2 rounded-full">
-                        Đang quét mã QR...
+                {/* Success State */}
+                {status === 'success' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-3xl shadow-md border border-green-100 p-12 text-center relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-teal-500" />
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", duration: 0.6 }}
+                      className="w-28 h-28 mx-auto mb-6 bg-gradient-to-br from-green-50 to-green-100 rounded-full flex items-center justify-center border-4 border-white shadow-xl shadow-green-100"
+                    >
+                      <CheckCircle2 className="h-14 w-14 text-green-500" />
+                    </motion.div>
+                    <h3 className="text-3xl font-black text-gray-800 mb-3">Thành công!</h3>
+                    <p className="text-gray-600 mb-10 text-lg">{message}</p>
+                    <Button
+                      onClick={() => navigate('/')}
+                      className="w-full py-4 rounded-xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-bold shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5"
+                    >
+                      Về trang chủ
+                    </Button>
+                  </motion.div>
+                )}
+
+                {/* Error State */}
+                {status === 'error' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-3xl shadow-sm border border-red-100 p-12 text-center"
+                  >
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", duration: 0.6 }}
+                      className="w-28 h-28 mx-auto mb-6 bg-red-50 rounded-full flex items-center justify-center border-4 border-white shadow-lg shadow-red-100"
+                    >
+                      <AlertCircle className="h-14 w-14 text-red-500" />
+                    </motion.div>
+                    <h3 className="text-2xl font-black text-gray-800 mb-3">Thất bại</h3>
+                    <p className="text-gray-600 mb-10">{message}</p>
+                    <div className="space-y-4">
+                      <Button
+                        onClick={resetScanner}
+                        className="w-full py-4 rounded-xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-bold shadow-md transition-all duration-300 transform hover:-translate-y-0.5"
+                      >
+                        Thử lại ngay
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => navigate(-1)}
+                        className="w-full py-4 rounded-xl bg-green-50 text-green-700 border-none hover:bg-green-100 font-medium transition-colors"
+                      >
+                        Hủy bỏ
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === 'gps' && (
+              <motion.div
+                key="gps-mode"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="space-y-6"
+              >
+                {/* Radar Display Modernized */}
+                <div className="bg-white rounded-3xl shadow-sm border border-green-100 overflow-hidden relative">
+                  <div className="aspect-square flex items-center justify-center bg-gradient-to-b from-green-50/50 to-white">
+                    {/* Radar Rings */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <motion.div
+                        className="absolute w-[80%] h-[80%] border border-green-200 rounded-full"
+                        animate={{ scale: [1, 1.1], opacity: [0.2, 0] }}
+                        transition={{ duration: 2.5, repeat: Infinity }}
+                      />
+                      <motion.div
+                        className="absolute w-[60%] h-[60%] border border-green-300/50 rounded-full"
+                        animate={{ scale: [1, 1.1], opacity: [0.4, 0] }}
+                        transition={{ duration: 2.5, repeat: Infinity, delay: 0.4 }}
+                      />
+                      <motion.div
+                        className="absolute w-[40%] h-[40%] border border-green-400/50 rounded-full bg-green-50/20"
+                        animate={{ scale: [1, 1.1], opacity: [0.6, 0] }}
+                        transition={{ duration: 2.5, repeat: Infinity, delay: 0.8 }}
+                      />
+                    </div>
+
+                    {/* Center Icon */}
+                    <motion.div
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="relative z-10"
+                    >
+                      <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(74,222,128,0.4)] border-4 border-white">
+                        <MapPin className="h-10 w-10 text-white" />
+                      </div>
+                    </motion.div>
+
+                    {/* Scanning Line - Modern */}
+                    <motion.div
+                      className="absolute inset-0"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                    >
+                      <div className="absolute top-1/2 left-1/2 w-[40%] h-1 bg-gradient-to-r from-green-500 to-transparent origin-left opacity-60" style={{ filter: 'blur(2px)' }}/>
+                    </motion.div>
+                  </div>
+
+                  {/* Overlay Status */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-green-50 p-4">
+                    <div className="flex items-center justify-center space-x-2">
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                      </span>
+                      <p className="text-green-800 text-center text-sm font-bold">
+                        {gpsStatus === 'connecting' && 'Đang đồng bộ vệ tinh GPS...'}
+                        {gpsStatus === 'ready' && 'Định vị thành công - Trong vùng sự kiện'}
+                        {gpsStatus === 'checking' && 'Đang trích xuất tọa độ...'}
                       </p>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* Processing State */}
-            {status === 'processing' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center"
-              >
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  className="w-20 h-20 mx-auto mb-6 rounded-full border-4 border-emerald-100 border-t-emerald-500"
-                />
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Đang đối soát dữ liệu...</h3>
-                <p className="text-sm text-gray-500">Vui lòng chờ trong giây lát</p>
-              </motion.div>
-            )}
-
-            {/* Success State */}
-            {status === 'success' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center"
-              >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", duration: 0.6 }}
-                  className="w-28 h-28 mx-auto mb-6 bg-emerald-100 rounded-full flex items-center justify-center"
-                >
-                  <CheckCircle2 className="h-16 w-16 text-emerald-500" />
-                </motion.div>
-                <h3 className="text-2xl font-black text-gray-900 mb-2">Thành công!</h3>
-                <p className="text-gray-600 mb-8">{message}</p>
-                <Button
-                  onClick={() => navigate('/')}
-                  className="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-100"
-                >
-                  Về trang chủ
-                </Button>
-              </motion.div>
-            )}
-
-            {/* Error State */}
-            {status === 'error' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center"
-              >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", duration: 0.6 }}
-                  className="w-28 h-28 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center"
-                >
-                  <AlertCircle className="h-16 w-16 text-red-600" />
-                </motion.div>
-                <h3 className="text-2xl font-black text-gray-900 mb-2">Thất bại</h3>
-                <p className="text-gray-600 mb-8">{message}</p>
-                <div className="space-y-3">
-                  <Button
-                    onClick={resetScanner}
-                    className="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-100"
-                  >
-                    Thử lại
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate(-1)}
-                    className="w-full py-4 rounded-xl"
-                  >
-                    Hủy bỏ
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </motion.div>
-        )}
-
-        {activeTab === 'gps' && (
-          <motion.div
-            key="gps-mode"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
-          >
-            {/* Radar Display */}
-            <div className="bg-gray-950 rounded-3xl shadow-xl overflow-hidden relative">
-              <div className="aspect-square flex items-center justify-center">
-                {/* Radar Rings */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  {/* Ring 3 - Outermost */}
-                  <motion.div
-                    className="absolute w-64 h-64 border-2 border-emerald-500/20 rounded-full"
-                    animate={{ scale: [1, 1.2], opacity: [0.5, 0] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                  {/* Ring 2 - Middle */}
-                  <motion.div
-                    className="absolute w-48 h-48 border-2 border-emerald-500/30 rounded-full"
-                    animate={{ scale: [1, 1.2], opacity: [0.6, 0] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
-                  />
-                  {/* Ring 1 - Innermost */}
-                  <motion.div
-                    className="absolute w-32 h-32 border-2 border-emerald-500/50 rounded-full"
-                    animate={{ scale: [1, 1.2], opacity: [0.8, 0] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: 0.6 }}
-                  />
-                </div>
-
-                {/* Center Icon */}
-                <motion.div
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className="relative z-10"
-                >
-                  <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/50">
-                    <MapPin className="h-10 w-10 text-white" />
+                {/* Technical Specs */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-white rounded-2xl p-4 border border-green-100 shadow-sm hover:shadow-md transition-shadow text-center group">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-green-50 rounded-full flex items-center justify-center group-hover:bg-green-100 transition-colors">
+                      <Target className="h-6 w-6 text-green-600" />
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Độ chính xác</p>
+                    <p className="text-lg font-black text-gray-800">±15m</p>
                   </div>
-                </motion.div>
-
-                {/* Scanning Lines */}
-                <motion.div
-                  className="absolute inset-0 border-2 border-emerald-500/0"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                >
-                  <div className="absolute top-0 left-1/2 w-0.5 h-20 bg-gradient-to-b from-emerald-500 to-transparent origin-bottom" />
-                </motion.div>
-              </div>
-
-              {/* Overlay Status */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-                <p className="text-white text-center text-sm font-medium">
-                  {gpsStatus === 'connecting' && 'Đang kết nối hệ thống vệ tinh...'}
-                  {gpsStatus === 'ready' && 'Hệ thống sẵn sàng - Vùng sự kiện: ĐÃ PHÁT HIỆN'}
-                  {gpsStatus === 'checking' && 'Đang xác minh vị trí...'}
-                </p>
-              </div>
-            </div>
-
-            {/* Technical Specs */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 text-center">
-                <div className="w-10 h-10 mx-auto mb-2 bg-emerald-50 rounded-xl flex items-center justify-center">
-                  <Target className="h-5 w-5 text-emerald-600" />
+                  <div className="bg-white rounded-2xl p-4 border border-green-100 shadow-sm hover:shadow-md transition-shadow text-center group">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-green-50 rounded-full flex items-center justify-center group-hover:bg-green-100 transition-colors">
+                      <Satellite className="h-6 w-6 text-green-600" />
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Vệ tinh</p>
+                    <p className="text-lg font-black text-green-600">Đã kết nối</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-green-100 shadow-sm hover:shadow-md transition-shadow text-center group">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-green-50 rounded-full flex items-center justify-center group-hover:bg-green-100 transition-colors">
+                      <Activity className="h-6 w-6 text-green-600" />
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Trạng thái</p>
+                    <p className="text-lg font-black text-green-600">Ổn định</p>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 font-medium uppercase">Độ chính xác</p>
-                <p className="text-lg font-black text-gray-900">±15m</p>
-              </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 text-center">
-                <div className="w-10 h-10 mx-auto mb-2 bg-emerald-50 rounded-xl flex items-center justify-center">
-                  <Satellite className="h-5 w-5 text-emerald-600" />
-                </div>
-                <p className="text-xs text-gray-500 font-medium uppercase">Vệ tinh</p>
-                <p className="text-lg font-black text-emerald-600">Đã kết nối</p>
-              </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 text-center">
-                <div className="w-10 h-10 mx-auto mb-2 bg-emerald-50 rounded-xl flex items-center justify-center">
-                  <Activity className="h-5 w-5 text-emerald-600" />
-                </div>
-                <p className="text-xs text-gray-500 font-medium uppercase">Trạng thái</p>
-                <p className="text-lg font-black text-emerald-600">Trong vùng</p>
-              </div>
-            </div>
 
-            {/* Processing / Success / Error States */}
-            <AnimatePresence mode="wait">
-              {status === 'processing' && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center"
-                >
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    className="w-20 h-20 mx-auto mb-6 rounded-full border-4 border-emerald-100 border-t-emerald-500"
-                  />
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">Đang xác minh vị trí...</h3>
-                  <p className="text-sm text-gray-500">Hệ thống đang kiểm tra tọa độ của bạn</p>
-                </motion.div>
-              )}
+                {/* Processing / Success / Error States */}
+                <AnimatePresence mode="wait">
+                  {status === 'processing' && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="bg-white rounded-3xl shadow-sm border border-green-100 p-12 text-center"
+                    >
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                        className="w-20 h-20 mx-auto mb-6 rounded-full border-4 border-green-100 border-t-green-500 shadow-lg shadow-green-100/50"
+                      />
+                      <h3 className="text-xl font-bold text-gray-800 mb-2">Đang xác minh vị trí...</h3>
+                      <p className="text-sm text-gray-500">Hệ thống đang kiểm tra tọa độ an toàn</p>
+                    </motion.div>
+                  )}
 
-              {status === 'success' && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center"
-                >
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", duration: 0.6 }}
-                    className="w-28 h-28 mx-auto mb-6 bg-emerald-100 rounded-full flex items-center justify-center"
-                  >
-                    <CheckCircle2 className="h-16 w-16 text-emerald-500" />
-                  </motion.div>
-                  <h3 className="text-2xl font-black text-gray-900 mb-2">Điểm danh thành công!</h3>
-                  <p className="text-gray-600 mb-6">{message}</p>
-                  <p className="text-sm text-emerald-600 font-medium mb-4">Vị trí đã xác nhận trong phạm vi sự kiện</p>
+                  {status === 'success' && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-white rounded-3xl shadow-sm border border-green-100 p-12 text-center"
+                    >
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", duration: 0.6 }}
+                        className="w-28 h-28 mx-auto mb-6 bg-gradient-to-br from-green-50 to-green-100 rounded-full flex items-center justify-center border-4 border-white shadow-xl shadow-green-100"
+                      >
+                        <CheckCircle2 className="h-14 w-14 text-green-500" />
+                      </motion.div>
+                      <h3 className="text-2xl font-black text-gray-800 mb-2">Điểm danh thành công!</h3>
+                      <p className="text-gray-600 mb-4">{message}</p>
+                      <div className="bg-green-50 text-green-700 px-4 py-2 rounded-lg text-sm font-medium mb-8 inline-block">
+                        Vị trí hợp lệ trong phạm vi sự kiện
+                      </div>
+                      <Button
+                        onClick={() => navigate('/')}
+                        className="w-full py-4 rounded-xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-bold shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5"
+                      >
+                        Về trang chủ
+                      </Button>
+                    </motion.div>
+                  )}
+
+                  {status === 'error' && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-white rounded-3xl shadow-sm border border-red-100 p-12 text-center"
+                    >
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", duration: 0.6 }}
+                        className="w-28 h-28 mx-auto mb-6 bg-red-50 rounded-full flex items-center justify-center border-4 border-white shadow-lg shadow-red-100"
+                      >
+                        <AlertCircle className="h-14 w-14 text-red-500" />
+                      </motion.div>
+                      <h3 className="text-2xl font-black text-gray-800 mb-2">Ngoài vùng khả dụng</h3>
+                      <p className="text-gray-600 mb-4">{message}</p>
+                      <p className="text-sm text-red-500 mb-8 bg-red-50 p-3 rounded-lg inline-block">
+                        Vui lòng di chuyển vào phạm vi sự kiện và thử lại
+                      </p>
+                      <Button
+                        onClick={() => {
+                          setStatus('idle');
+                          setGpsStatus('ready');
+                        }}
+                        className="w-full py-4 rounded-xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-bold shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5"
+                      >
+                        Cập nhật lại tọa độ
+                      </Button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* GPS Action Button */}
+                {status === 'idle' && activeTab === 'gps' && (
                   <Button
-                    onClick={() => navigate('/')}
-                    className="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-100"
+                    onClick={handleGpsCheckin}
+                    className="w-full py-5 text-lg rounded-2xl shadow-md bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-bold transition-all duration-300 transform hover:-translate-y-0.5"
                   >
-                    Về trang chủ
+                    <MapPin className="h-6 w-6 mr-2" />
+                    XÁC NHẬN VỊ TRÍ & ĐIỂM DANH
                   </Button>
-                </motion.div>
-              )}
-
-              {status === 'error' && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center"
-                >
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", duration: 0.6 }}
-                    className="w-28 h-28 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center"
-                  >
-                    <AlertCircle className="h-16 w-16 text-red-600" />
-                  </motion.div>
-                  <h3 className="text-2xl font-black text-gray-900 mb-2">Không thể xác minh</h3>
-                  <p className="text-gray-600 mb-6">{message}</p>
-                  <p className="text-sm text-red-500 mb-4">Vui lòng di chuyển vào phạm vi sự kiện và thử lại</p>
-                  <Button
-                    onClick={() => {
-                      setStatus('idle');
-                      setGpsStatus('ready');
-                    }}
-                    className="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-100"
-                  >
-                    Thử lại
-                  </Button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* GPS Action Button */}
-            {status === 'idle' && activeTab === 'gps' && (
-              <Button
-                onClick={handleGpsCheckin}
-                className="w-full py-5 text-lg rounded-2xl shadow-lg shadow-emerald-100 bg-emerald-500 hover:bg-emerald-600 font-bold"
-              >
-                <MapPin className="h-6 w-6 mr-2" />
-                XÁC NHẬN VỊ TRÍ & ĐIỂM DANH
-              </Button>
+                )}
+              </motion.div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </AnimatePresence>
+        </div>
 
-      {/* Info Box */}
-      <div className="mt-8 p-6 bg-emerald-50 rounded-2xl border border-emerald-100">
-        <h4 className="font-bold text-emerald-900 mb-2 flex items-center">
-          <AlertCircle className="h-4 w-4 mr-2" />
-          Lưu ý quan trọng
-        </h4>
-        <ul className="text-xs text-emerald-800 space-y-2 list-disc pl-4">
-          <li>Mã QR là mã động, sẽ thay đổi sau mỗi 15 giây để tránh gian lận.</li>
-          <li>Điểm danh GPS yêu cầu bạn phải trong phạm vi 50m của sự kiện.</li>
-          <li>Hãy đảm bảo kết nối mạng ổn định và bật GPS trên thiết bị.</li>
-        </ul>
+        {/* Info Box */}
+        <div className="bg-white shadow-sm border-l-4 border-l-green-500 border border-green-100 rounded-2xl p-6 mt-6">
+          <h4 className="font-bold text-gray-800 mb-3 flex items-center text-base">
+            <div className="p-1.5 bg-green-50 rounded-lg mr-3">
+              <AlertCircle className="h-5 w-5 text-green-600" />
+            </div>
+            Lưu ý kỹ thuật
+          </h4>
+          <ul className="text-sm text-gray-600 space-y-3 pl-2">
+            <li className="flex items-start">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 mt-1.5 mr-2 flex-shrink-0" />
+              Mã QR mã hóa động, tự động làm mới sau mỗi 15 giây để bảo mật dữ liệu.
+            </li>
+            <li className="flex items-start">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 mt-1.5 mr-2 flex-shrink-0" />
+              Chế độ GPS yêu cầu thiết bị nằm trong bán kính 50m so với tâm sự kiện.
+            </li>
+            <li className="flex items-start">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 mt-1.5 mr-2 flex-shrink-0" />
+              Đảm bảo cấp quyền truy cập Camera/Vị trí và duy trì kết nối mạng ổn định.
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );

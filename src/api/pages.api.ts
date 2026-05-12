@@ -14,7 +14,7 @@ export interface UpdatePageParams extends Partial<CreatePageParams> {
 
 export interface AddMemberParams {
   user_id: string;
-  role: string;
+  is_owner?: boolean;
 }
 
 export interface PageMember {

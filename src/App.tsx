@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/auth.store';
 import { Login } from './pages/auth/Login';
-import { Register } from './pages/auth/Register';
 import { StudentLayout } from './components/layout/StudentLayout';
 import { PageAdminLayout } from './components/layout/PageAdminLayout';
 import { SystemAdminLayout } from './components/layout/SystemAdminLayout';
@@ -19,7 +18,6 @@ import { EventCheckin } from './pages/page-admin/EventCheckin';
 import { QRDisplay } from './pages/page-admin/QRDisplay';
 import { DynamicQrScreen } from './pages/page-admin/DynamicQrScreen';
 import { PageSettings } from './pages/page-admin/PageSettings';
-import { StudentCheckin } from './pages/student/StudentCheckin';
 import { PostManagement } from './pages/page-admin/PostManagement';
 import { EventManagement } from './pages/page-admin/EventManagement';
 import { Dashboard } from './pages/page-admin/Dashboard';
@@ -31,7 +29,6 @@ import { EventApproval } from './pages/admin/EventApproval';
 import { StudentManagement } from './pages/admin/StudentManagement';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 // import { SystemDashboard } from './pages/admin/SystemDashboard';
-import { ClubManagement } from './pages/admin/ClubManagement';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToasterSetup } from './components/ui/ToasterSetup';
 
@@ -64,8 +61,7 @@ export default function App() {
           <Routes>
             {/* Auth Routes */}
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-
+            
             {/* Student Routes */}
             <Route
               path="/"
@@ -85,7 +81,6 @@ export default function App() {
               <Route path="settings" element={<Settings />} />
               <Route path="my-events" element={<MyEvents />} />
               <Route path="scan-qr" element={<ScanQR />} />
-              <Route path="checkin" element={<StudentCheckin />} />
             </Route>
 
             {/* Page Admin Routes */}
@@ -120,7 +115,6 @@ export default function App() {
               <Route index element={<AdminDashboard />} />
               {/* Routes temporarily disabled due to missing backend APIs */}
               {/* <Route path="system" element={<SystemDashboard />} /> */}
-              <Route path="clubs" element={<ClubManagement />} /> 
               <Route path="events" element={<EventApproval />} />
               <Route path="pages" element={<PageManagement />} />
               <Route path="categories" element={<CategoryManagement />} />

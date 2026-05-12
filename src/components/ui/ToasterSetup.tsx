@@ -11,7 +11,7 @@ export const ToasterSetup = ({ children }: ToasterSetupProps) => {
       <SonnerToaster
         theme="light"
         position="top-right"
-        richColors
+        richColors // Thuộc tính này sẽ tự động lo phần màu sắc gradient chuẩn cho success/error/info
         closeButton
         duration={4000}
         className="toaster-container"
@@ -26,40 +26,6 @@ export const ToasterSetup = ({ children }: ToasterSetupProps) => {
             padding: '16px',
             fontSize: '14px',
             maxWidth: '420px',
-          },
-          success: {
-            style: {
-              background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(59, 130, 246, 0.15))',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
-              borderLeft: '4px solid #22c55e',
-            },
-            iconTheme: {
-              primary: '#22c55e',
-              secondary: '#dcfce7',
-            },
-          },
-          error: {
-            style: {
-              background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(249, 115, 22, 0.1))',
-              border: '1px solid rgba(251, 191, 36, 0.3)',
-              borderLeft: '4px solid #f59e0b',
-            },
-            iconTheme: {
-              primary: '#f59e0b',
-              secondary: '#fef3c7',
-            },
-          },
-          warning: {
-            style: {
-              background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(249, 115, 22, 0.1))',
-              border: '1px solid rgba(251, 191, 36, 0.3)',
-            },
-          },
-          info: {
-            style: {
-              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.1))',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
-            },
           },
         }}
       />

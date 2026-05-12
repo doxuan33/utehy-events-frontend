@@ -237,7 +237,7 @@ export const EventDetail = () => {
                 </div>
 
                 {isRegistered && event.status === 'ONGOING' && (
-                  <Link to="/checkin" className="block w-full">
+                  <Link to="/scan-qr" className="block w-full">
                     <Button className="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 shadow-sm mb-4">
                       <QrCode className="h-5 w-5 mr-2" />
                       Điểm danh ngay
