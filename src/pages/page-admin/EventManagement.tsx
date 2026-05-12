@@ -616,9 +616,9 @@ export const EventManagement = () => {
                     <div className="col-span-2 flex gap-2">
                       {(event.status === 'APPROVED' || event.status === 'ONGOING') && (
                         <button
-                          onClick={() => handleStartCheckin(event.id)}
+                          onClick={() => event.status === 'ONGOING' ? navigate(`/page-admin/events/${event.id}/qr-display`) : handleStartCheckin(event.id)}
                           disabled={isActionLoading === event.id}
-                          title="Mở QR Điểm danh"
+                          title={event.status === 'ONGOING' ? "Mở lại màn hình QR" : "Bắt đầu & Mở QR"}
                           className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm hover:shadow-md text-sm font-medium disabled:opacity-50"
                         >
                           {isActionLoading === event.id ? <Loader2 size={18} className="animate-spin" /> : <QrCode size={20} />}
