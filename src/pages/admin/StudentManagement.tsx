@@ -144,17 +144,27 @@ export const StudentManagement = () => {
   };
 
   const mapStudentData = (rawData: any[]): any[] => {
-    const mapped = rawData.map((row) => ({
-      student_id: row['MSSV'] ? String(row['MSSV']).trim() : '',
-      full_name: row['HoTen'] ? String(row['HoTen']).trim() : '',
-      class_name: row['Lop'] ? String(row['Lop']).trim() : '',
-      faculty: row['Khoa'] ? String(row['Khoa']).trim() : '',
-      phone: row['SoDienThoai'] ? String(row['SoDienThoai']).trim() : '',
-      email: row['Email'] ? String(row['Email']).trim().toLowerCase() : '',
-    }));
+    const mapped = rawData.map((row) => {
+      // Xử lý số điện thoại: convert sang string và bù số 0 nếu bị Excel cắt mất
+      let phoneStr = row['SoDienThoai'] ? String(row['SoDienThoai']).trim() : '';
+      if (phoneStr && phoneStr.length === 9 && !phoneStr.startsWith('0')) {
+        phoneStr = '0' + phoneStr;
+      }
+
+      return {
+        student_id: row['MSSV'] ? String(row['MSSV']).trim() : '',
+        full_name: row['HoTen'] ? String(row['HoTen']).trim() : '',
+        class_name: row['Lop'] ? String(row['Lop']).trim() : '',
+        faculty: row['Khoa'] ? String(row['Khoa']).trim() : '',
+        phone: phoneStr,
+        email: row['Email'] ? String(row['Email']).trim() : ''
+      };
+    });
 
     // Filter out rows with missing required fields
-    return mapped.filter(s => s.student_id && s.full_name);
+    const filtered = mapped.filter(s => s.student_id && s.full_name);
+    console.log('>>> Dữ liệu đã chuẩn hóa gửi lên API:', filtered);
+    return filtered;
   };
 
   const faculties = ['all', ...new Set(students.map(s => s.profile?.faculty).filter(Boolean))];
@@ -224,7 +234,50 @@ export const StudentManagement = () => {
     }
   };
 
-  const handleCloseImportModal = () => {
+   const handleDownloadTemplate = () => {
+     try {
+       // Create workbook and worksheet
+       const wb = XLSX.utils.book_new();
+       
+       // Define column headers matching the frontend mapping
+       const headers = ['MSSV', 'HoTen', 'Lop', 'Khoa', 'SoDienThoai', 'Email'];
+       
+       // Sample data rows
+       const sampleData = [
+         ['10125001', 'Nguyễn Văn An', 'TK25.1', 'Công nghệ Thông tin', '0901234001', 'an@student.utehy.edu.vn'],
+         ['10125002', 'Trần Thị Bình', 'TK25.2', 'Quản trị Kinh doanh', '0901234002', 'binh@student.utehy.edu.vn'],
+       ];
+       
+       // Combine headers and sample data
+       const wsData = [headers, ...sampleData];
+       
+       // Create worksheet from data
+       const ws = XLSX.utils.aoa_to_sheet(wsData);
+       
+       // Set column widths for readability
+       ws['!cols'] = [
+         { wch: 12 },  // MSSV
+         { wch: 25 },  // HoTen
+         { wch: 15 },  // Lop
+         { wch: 20 },  // Khoa
+         { wch: 15 },  // SoDienThoai
+         { wch: 30 },  // Email
+       ];
+       
+       // Add worksheet to workbook
+       XLSX.utils.book_append_sheet(wb, ws, 'SinhVien');
+       
+       // Save the file
+       XLSX.writeFile(wb, 'Template_Import_SinhVien.xlsx');
+       
+       toast.success('Đã tải xuống file mẫu');
+     } catch (err) {
+       console.error('Failed to download template', err);
+       toast.error('Không thể tải file mẫu');
+     }
+   };
+
+   const handleCloseImportModal = () => {
     handleClearFile();
     setIsImportModalOpen(false);
   };
@@ -297,6 +350,13 @@ export const StudentManagement = () => {
             <Upload className="h-5 w-5" />
             <span className="font-bold">Nhập từ Excel</span>
           </Button>
+          <button
+            onClick={handleDownloadTemplate}
+            className="text-blue-600 hover:text-blue-700 hover:underline text-sm font-medium flex items-center space-x-1 px-2"
+          >
+            <Download className="h-4 w-4" />
+            <span>Tải file mẫu tại đây</span>
+          </button>
           <Button 
             variant="outline"
             onClick={async () => {
