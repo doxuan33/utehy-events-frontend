@@ -270,13 +270,37 @@ export const EventManagement = () => {
 
    useEffect(() => { fetchInitialData(); }, []);
 
+   useEffect(() => {
+     const interval = setInterval(() => {
+       const now = new Date().getTime();
+       
+       setEvents((prevEvents) => {
+         let hasChanged = false;
+         const updatedEvents = prevEvents.map((event) => {
+           // Nếu sự kiện chưa đóng, và thời gian hiện tại lớn hơn end_time
+           if (event.end_time && new Date(event.end_time).getTime() < now && event.status !== 'CLOSED') {
+             hasChanged = true;
+             return { ...event, status: 'CLOSED' };
+           }
+           return event;
+         });
+         
+         // Chỉ render lại (cập nhật state) nếu có sự kiện thực sự thay đổi trạng thái
+         return hasChanged ? updatedEvents : prevEvents;
+       });
+     }, 60000); // 60000ms = 1 phút kiểm tra 1 lần
+
+     return () => clearInterval(interval); // Dọn dẹp interval khi unmount
+   }, []);
+   // -----------------------------------------------------------
+
     const fetchInitialData = async () => {
       try {
         setIsLoading(true);
- // Get managed page from auth store
-          const { user } = useAuthStore.getState();
-          // Lấy ưu tiên: object page.id (nếu backend có include) -> sau đó đến page_id
-          const managedPageId = user?.managed_pages?.[0]?.page?.id || user?.managed_pages?.[0]?.page_id;
+        // Get managed page from auth store
+        const { user } = useAuthStore.getState();
+        // Lấy ưu tiên: object page.id (nếu backend có include) -> sau đó đến page_id
+        const managedPageId = user?.managed_pages?.[0]?.page?.id || user?.managed_pages?.[0]?.page_id;
         let managedPage = null;
         if (managedPageId) {
           const pageRes = await pagesApi.getById(managedPageId);
@@ -289,8 +313,22 @@ export const EventManagement = () => {
         setPage(managedPage);
         const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 50 });
         const rawEvents = eventsRes.data.data.data || [];
-        const sortedEvents = rawEvents.sort((a: any, b: any) => new Date(b.created_at || b.start_time || b.id).getTime() - new Date(a.created_at || a.start_time || a.id).getTime());
+        
+        // --- ĐOẠN THÊM MỚI ---
+        const now = new Date().getTime();
+        const processedEvents = rawEvents.map((event: any) => {
+          // Nếu có end_time và thời gian hiện tại đã vượt qua end_time thì ép thành CLOSED
+          if (event.end_time && new Date(event.end_time).getTime() < now && event.status !== 'CLOSED') {
+            return { ...event, status: 'CLOSED' };
+          }
+          return event;
+        });
+        // ---------------------
+
+        // Sắp xếp các sự kiện đã được xử lý thay vì rawEvents ban đầu
+        const sortedEvents = processedEvents.sort((a: any, b: any) => new Date(b.created_at || b.start_time || b.id).getTime() - new Date(a.created_at || a.start_time || a.id).getTime());
         setEvents(sortedEvents);
+        
         const catRes = await eventsApi.getCategories();
         setCategories(catRes.data.data);
       } catch (err) {
