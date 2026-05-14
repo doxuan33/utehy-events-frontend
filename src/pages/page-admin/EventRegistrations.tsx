@@ -25,7 +25,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import confetti from 'canvas-confetti';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+// ĐÃ SỬA: Import Html5Qrcode thay vì Html5QrcodeScanner để tự mở camera
+import { Html5Qrcode } from 'html5-qrcode';
 
 type Registration = {
   id: string;
@@ -42,7 +43,6 @@ type Registration = {
   registered_at: string;
 };
 
-// ĐÃ SỬA: Thêm page_id vào type
 type Event = {
   id: string;
   title: string;
@@ -68,7 +68,9 @@ export const EventRegistrations = () => {
   const [scannedStudentId, setScannedStudentId] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState<{ name: string; id: string } | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  
+  // ĐÃ SỬA: Đổi kiểu tham chiếu sang Html5Qrcode
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   // Fetch data
   useEffect(() => {
@@ -76,55 +78,46 @@ export const EventRegistrations = () => {
     fetchInitialData();
   }, [eventId]);
 
-    const fetchInitialData = async () => {
-      if (!eventId) return;
-      setIsLoading(true);
-      
-      try {
-        // 1. Gọi API sự kiện
-        const eventRes = await eventsApi.getById(eventId);
-        const eventData = eventRes.data.data;
-        setEvent(eventData);
+  const fetchInitialData = async () => {
+    if (!eventId) return;
+    setIsLoading(true);
+    
+    try {
+      const eventRes = await eventsApi.getById(eventId);
+      const eventData = eventRes.data.data;
+      setEvent(eventData);
 
-        // 2. Lấy page_id từ sự kiện (Lối tắt)
-        const currentPageId = eventData.page_id;
+      const currentPageId = eventData.page_id;
 
-        if (!currentPageId) {
-          toast.error('Sự kiện này không thuộc Fanpage nào!');
-          setIsLoading(false);
-          return;
-        }
-
-        // 3. Gọi API lấy danh sách đăng ký
-        const regRes = await registrationsApi.getEventRegistrations(eventId, currentPageId);
-        
-        // ĐÃ SỬA: Bóc tách mảng dữ liệu an toàn
-        // Backend trả về: regRes.data = { success, message, data: { data: [...], meta: {...}, event: {...} } }
-        // Vậy mảng thực sự nằm ở: regRes.data.data.data
-        const rawPayload = regRes.data?.data;
-        const registrationArray = rawPayload?.data;
-
-        if (Array.isArray(registrationArray)) {
-          // Nếu bóc tách thành công một Mảng, tiến hành sắp xếp
-          const sortedReg = [...registrationArray].sort((a: Registration, b: Registration) =>
-            new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime()
-          );
-          setRegistrations(sortedReg);
-        } else {
-          // Nếu không có dữ liệu hoặc lỗi cấu trúc
-          setRegistrations([]);
-          console.warn('Lưu ý: Không có mảng dữ liệu trả về hợp lệ từ API.');
-        }
-        
-      } catch (err: any) {
-        // ĐÃ SỬA: Thêm console.error để dễ debug
-        console.error('Lỗi khi fetch dữ liệu registrations:', err);
-        toast.error(err.response?.data?.message || 'Không thể tải dữ liệu');
-        setRegistrations([]); // Reset mảng nếu lỗi để tránh crash UI
-      } finally {
+      if (!currentPageId) {
+        toast.error('Sự kiện này không thuộc Fanpage nào!');
         setIsLoading(false);
+        return;
       }
-    };
+
+      const regRes = await registrationsApi.getEventRegistrations(eventId, currentPageId);
+      
+      const rawPayload = regRes.data?.data;
+      const registrationArray = rawPayload?.data;
+
+      if (Array.isArray(registrationArray)) {
+        const sortedReg = [...registrationArray].sort((a: Registration, b: Registration) =>
+          new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime()
+        );
+        setRegistrations(sortedReg);
+      } else {
+        setRegistrations([]);
+        console.warn('Lưu ý: Không có mảng dữ liệu trả về hợp lệ từ API.');
+      }
+      
+    } catch (err: any) {
+      console.error('Lỗi khi fetch dữ liệu registrations:', err);
+      toast.error(err.response?.data?.message || 'Không thể tải dữ liệu');
+      setRegistrations([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filtered registrations
   const filteredRegistrations = registrations.filter(reg => {
@@ -164,7 +157,6 @@ export const EventRegistrations = () => {
     });
   };
 
-  // Mock QR scan
   const handleMockScan = async () => {
     if (!scannedStudentId.trim()) {
       toast.error('Vui lòng nhập MSSV');
@@ -187,50 +179,65 @@ export const EventRegistrations = () => {
     setTimeout(() => setShowSuccessModal(null), 3000);
   };
 
-  // QR Scanner Functions
-  const startScanner = useCallback(() => {
-    setIsCameraOpen(true);
-    setTimeout(() => {
-      const scanner = new Html5QrcodeScanner(
-        "qr-reader-admin",
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0
-        },
-        false
-      );
-      scanner.render(onScanSuccess, onScanError);
-      scannerRef.current = scanner;
-    }, 100);
-  }, []);
-
-  const stopScanner = useCallback(() => {
-    if (scannerRef.current) {
-      scannerRef.current.clear().catch(console.error);
-      scannerRef.current = null;
-    }
-    setIsCameraOpen(false);
-  }, []);
-
-  const onScanSuccess = useCallback(async (decodedText: string) => {
+  // ĐÃ SỬA: Logic Stop Scanner chuẩn của Html5Qrcode
+  const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.clear();
-      } catch (err) {
-        console.error("Failed to clear scanner", err);
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+        scannerRef.current.clear();
+      } catch (error) {
+        console.error("Lỗi khi tắt scanner:", error);
       }
       scannerRef.current = null;
     }
-    
     setIsCameraOpen(false);
+  }, []);
+
+  // ĐÃ SỬA: Logic Start Scanner ép mở Camera trực tiếp
+  const startScanner = useCallback(() => {
+    setIsCameraOpen(true);
+    
+    // Đợi UI render xong div qr-reader-admin
+    setTimeout(async () => {
+      try {
+        const html5QrCode = new Html5Qrcode("qr-reader-admin");
+        scannerRef.current = html5QrCode;
+
+        await html5QrCode.start(
+          { facingMode: "environment" }, // Bắt buộc dùng camera sau (hoặc camera có sẵn)
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          (decodedText) => {
+            // Khi quét thành công gọi hàm này
+            onScanSuccess(decodedText);
+          },
+          (errorMessage) => {
+            // Log lỗi nhẹ (do quét liên tục nên không hiện toast ở đây)
+          }
+        );
+      } catch (err: any) {
+        console.error("Camera start error:", err);
+        toast.error('Vui lòng cho phép trình duyệt truy cập Camera!');
+        setIsCameraOpen(false);
+      }
+    }, 200);
+  }, []);
+
+  const onScanSuccess = useCallback(async (decodedText: string) => {
+    // Quét xong tắt camera đi để xử lý
+    await stopScanner();
     
     const reg = registrations.find(r =>
       r.user.profile?.student_id === decodedText && r.status !== 'ATTENDED'
     );
 
     if (!reg) {
-      toast.error('Không tìm thấy sinh viên chưa điểm danh');
+      toast.error(`Mã ${decodedText}: Không tìm thấy SV chưa điểm danh`);
       return;
     }
 
@@ -238,39 +245,21 @@ export const EventRegistrations = () => {
     await handleManualCheckin(reg.id, decodedText);
     setShowSuccessModal({ name: studentName, id: decodedText });
     setTimeout(() => setShowSuccessModal(null), 3000);
-  }, [registrations]);
+  }, [registrations, stopScanner]);
 
-  const onScanError = useCallback((error: any) => {
-    if (error && error.name) {
-      if (error.name === 'NotAllowedError') {
-        toast.error('Vui lòng cho phép trình duyệt truy cập Camera!');
-        stopScanner();
-      } else if (error.name === 'NotFoundError') {
-        toast.error('Không tìm thấy thiết bị Camera nào trên máy của bạn!');
-        stopScanner();
-      }
-    }
-  }, [stopScanner]);
-
-  // Cleanup scanner on unmount or tab change
+  // Cleanup scanner on unmount
   useEffect(() => {
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
-        scannerRef.current = null;
-      }
-      setIsCameraOpen(false);
+      stopScanner();
     };
-  }, []);
+  }, [stopScanner]);
 
   // Stop scanner when switching away from scanner tab
   useEffect(() => {
-    if (activeTab !== 'scanner' && scannerRef.current) {
-      scannerRef.current.clear().catch(console.error);
-      scannerRef.current = null;
-      setIsCameraOpen(false);
+    if (activeTab !== 'scanner') {
+      stopScanner();
     }
-  }, [activeTab]);
+  }, [activeTab, stopScanner]);
 
   // Export to Excel
   const handleExportExcel = () => {
@@ -324,7 +313,6 @@ export const EventRegistrations = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Total Tickets */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
@@ -337,7 +325,6 @@ export const EventRegistrations = () => {
           </div>
         </div>
 
-        {/* Registered */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-2">
             <div>
@@ -348,7 +335,6 @@ export const EventRegistrations = () => {
               <UserCheck className="h-6 w-6 text-blue-600" />
             </div>
           </div>
-          {/* Progress bar: Check-in / Registered */}
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-emerald-500 h-2 rounded-full transition-all"
@@ -358,7 +344,6 @@ export const EventRegistrations = () => {
           <p className="text-xs text-gray-500 mt-1 text-right">{checkinPercent}% đã check-in</p>
         </div>
 
-        {/* Attended */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
@@ -524,80 +509,73 @@ export const EventRegistrations = () => {
           </motion.div>
         )}
 
-{activeTab === 'scanner' && (
-           <motion.div
-             initial={{ opacity: 0, y: 10 }}
-             animate={{ opacity: 1, y: 0 }}
-             exit={{ opacity: 0, y: -10 }}
-             className="space-y-6"
-           >
-             {/* QR Scanner UI */}
-             <div className="max-w-md mx-auto">
-               <div className="relative bg-gray-950 rounded-3xl p-1 aspect-square flex items-center justify-center overflow-hidden shadow-2xl">
-                 {/* Corner markers */}
-                 <div className="absolute top-4 left-4 w-8 h-8 border-l-4 border-t-4 border-emerald-500 rounded-tl-lg z-10" />
-                 <div className="absolute top-4 right-4 w-8 h-8 border-r-4 border-t-4 border-emerald-500 rounded-tr-lg z-10" />
-                 <div className="absolute bottom-4 left-4 w-8 h-8 border-l-4 border-b-4 border-emerald-500 rounded-bl-lg z-10" />
-                 <div className="absolute bottom-4 right-4 w-8 h-8 border-r-4 border-b-4 border-emerald-500 rounded-br-lg z-10" />
+        {activeTab === 'scanner' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            {/* QR Scanner UI */}
+            <div className="max-w-md mx-auto">
+              <div className="relative bg-gray-950 rounded-3xl p-1 aspect-square flex items-center justify-center overflow-hidden shadow-2xl">
+                {/* Corner markers */}
+                <div className="absolute top-4 left-4 w-8 h-8 border-l-4 border-t-4 border-emerald-500 rounded-tl-lg z-10" />
+                <div className="absolute top-4 right-4 w-8 h-8 border-r-4 border-t-4 border-emerald-500 rounded-tr-lg z-10" />
+                <div className="absolute bottom-4 left-4 w-8 h-8 border-l-4 border-b-4 border-emerald-500 rounded-bl-lg z-10" />
+                <div className="absolute bottom-4 right-4 w-8 h-8 border-r-4 border-b-4 border-emerald-500 rounded-br-lg z-10" />
 
-                 {/* Center crosshair */}
-                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                   <div className="w-16 h-16 border-2 border-emerald-500/30 rounded-lg" />
-                   <div className="absolute w-1 h-12 bg-emerald-500/50" />
-                   <div className="absolute w-12 h-1 bg-emerald-500/50" />
-                 </div>
+                {/* Video/Camera preview */}
+                <div id="qr-reader-admin" className={`w-full h-full [&_video]:object-cover [&_video]:w-full [&_video]:h-full ${isCameraOpen ? '' : 'hidden'}`} />
 
-                 {/* Video/Camera preview */}
-                 <div id="qr-reader-admin" className={`w-full h-full ${isCameraOpen ? '' : 'hidden'}`} />
+                {/* Placeholder when camera is off */}
+                {!isCameraOpen && (
+                  <>
+                    <motion.div
+                      className="absolute w-4/5 h-0.5 bg-gradient-to-r from-transparent via-emerald-500 to-transparent shadow-lg shadow-emerald-500/50"
+                      animate={{ y: [-100, 100, -100] }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                    <QrCode className="h-24 w-24 text-gray-700 relative z-0" />
+                  </>
+                )}
 
-                 {/* Placeholder when camera is off */}
-                 {!isCameraOpen && (
-                   <>
-                     <motion.div
-                       className="absolute w-4/5 h-0.5 bg-gradient-to-r from-transparent via-emerald-500 to-transparent shadow-lg shadow-emerald-500/50"
-                       animate={{ y: [-100, 100, -100] }}
-                       transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                     />
-                     <QrCode className="h-24 w-24 text-gray-700 relative z-0" />
-                   </>
-                 )}
+                {/* Camera on overlay */}
+                {isCameraOpen && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-16 h-16 flex items-center justify-center">
+                      <div className="w-full h-0.5 bg-emerald-500/50" />
+                      <div className="absolute w-0.5 h-full bg-emerald-500/50" />
+                      <div className="absolute w-3 h-3 border-2 border-emerald-500 rounded-full" />
+                    </div>
+                  </div>
+                )}
+              </div>
 
-                 {/* Camera on overlay */}
-                 {isCameraOpen && (
-                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                     <div className="w-16 h-16 flex items-center justify-center">
-                       <div className="w-full h-0.5 bg-emerald-500/50" />
-                       <div className="absolute w-0.5 h-full bg-emerald-500/50" />
-                       <div className="absolute w-3 h-3 border-2 border-emerald-500 rounded-full" />
-                     </div>
-                   </div>
-                 )}
-               </div>
+              <p className="text-center text-gray-600 mt-4">
+                Đưa mã QR trên vé điện tử của sinh viên vào khung hình
+              </p>
 
-               <p className="text-center text-gray-600 mt-4">
-                 Đưa mã QR trên vé điện tử của sinh viên vào khung hình
-               </p>
-
-               {/* Camera Toggle Button */}
-               {!isCameraOpen ? (
-                 <Button
-                   onClick={startScanner}
-                   className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
-                 >
-                   <Camera className="h-4 w-4 mr-2" />
-                   Bật Camera
-                 </Button>
-               ) : (
-                 <Button
-                   onClick={stopScanner}
-                   variant="outline"
-                   className="w-full mt-4"
-                 >
-                   <X className="h-4 w-4 mr-2" />
-                   Tắt Camera
-                 </Button>
-               )}
-             </div>
+              {/* Camera Toggle Button */}
+              {!isCameraOpen ? (
+                <Button
+                  onClick={startScanner}
+                  className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Bật Camera
+                </Button>
+              ) : (
+                <Button
+                  onClick={stopScanner}
+                  variant="outline"
+                  className="w-full mt-4"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Tắt Camera
+                </Button>
+              )}
+            </div>
 
             {/* Mock Scan Input */}
             <div className="max-w-md mx-auto bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
