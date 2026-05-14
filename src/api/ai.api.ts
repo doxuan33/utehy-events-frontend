@@ -7,4 +7,6 @@ export const aiApi = {
     apiClient.post('/ai/analyze-event', eventData),
   generatePoster: (description: string) =>
     apiClient.post('/ai/generate-poster', { description }),
+  chat: (message: string) => 
+    apiClient.post('/ai/chat', { message }),
 };

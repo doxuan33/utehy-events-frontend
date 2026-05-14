@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react'; // Hoặc 'framer-motion' tùy bạn đang cài thư viện nào
 import { MessageCircle, Send, X, Sparkles } from 'lucide-react';
+import { aiApi } from '../../api/ai.api'; // Thay đổi đường dẫn này nếu file ai.api.ts nằm ở vị trí khác
 
 interface ChatMessage {
   id: string;
@@ -15,7 +16,7 @@ export const AiChatbotAssistant = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      text: 'Xin chào! Tôi là trợ lý AI của UTEHY Social. Tôi có thể giúp gợi ý sự kiện phù hợp với bạn. Hãy thử hỏi: "Gợi ý sự kiện cho tôi nhé!"',
+      text: 'Xin chào! Tôi là trợ lý AI của UTEHY Social. Tôi có thể giúp gợi ý sự kiện phù hợp với bạn. Hãy thử hỏi: "Trường mình sắp tới có sự kiện gì không?"',
       isUser: false,
       timestamp: new Date(),
     },
@@ -35,9 +36,12 @@ export const AiChatbotAssistant = () => {
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
+    const currentInput = inputValue;
+
+    // 1. Thêm tin nhắn của user vào giao diện
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      text: inputValue,
+      text: currentInput,
       isUser: true,
       timestamp: new Date(),
     };
@@ -46,34 +50,34 @@ export const AiChatbotAssistant = () => {
     setInputValue('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      let botResponse: ChatMessage = {
+    try {
+      // 2. Gọi API thật từ ai.api.ts
+      const response: any = await aiApi.chat(currentInput);
+
+      // 3. Xử lý dữ liệu trả về (Linh hoạt lấy data tùy thuộc format của Axios/Backend)
+      const replyText = response.data?.data?.reply || response.data?.reply || response.reply || 'Xin lỗi, tôi không nhận được thông tin phản hồi rõ ràng.';
+
+      const botResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        text: 'Tôi đang xử lý yêu cầu của bạn...',
+        text: replyText,
         isUser: false,
         timestamp: new Date(),
       };
 
-      const lowerInput = inputValue.toLowerCase();
-      if (lowerInput.includes('gợi ý') || lowerInput.includes('sự kiện')) {
-        botResponse = {
-          id: (Date.now() + 1).toString(),
-          text: 'Dưới đây là những sự kiện mà tôi nghĩ bạn sẽ thích:',
-          isUser: false,
-          timestamp: new Date(),
-          events: [
-            { id: 1, title: 'Hội thảo Công nghệ AI 2026', banner_url: 'https://picsum.photos/seed/1/400/200', training_points: 5 },
-            { id: 2, title: 'Workshop Lập trình Web', banner_url: 'https://picsum.photos/seed/2/400/200', training_points: 3 },
-            { id: 3, title: 'Cuộc thi Hackathon UTEHY', banner_url: 'https://picsum.photos/seed/3/400/200', training_points: 10 },
-          ],
-        };
-      } else {
-        botResponse.text = 'Cảm ơn bạn! Bạn có thể hỏi tôi về sự kiện, câu lạc bộ hoặc bất kỳ điều gì liên quan đến hoạt động ngoại khóa nhé!';
-      }
-
       setMessages((prev) => [...prev, botResponse]);
+    } catch (error) {
+      console.error('Lỗi khi chat với AI:', error);
+      
+      const errorResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: 'Xin lỗi, máy chủ AI đang tải dữ liệu hoặc mạng đang gián đoạn. Bạn thử lại sau vài giây nhé!',
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -88,7 +92,9 @@ export const AiChatbotAssistant = () => {
       {/* Desktop View - Sidebar Card */}
       <div className="hidden lg:flex flex-col h-[450px] bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-emerald-500 to-emerald-400">
-          <h3 className="font-bold text-white">AI Assistant 24/7</h3>
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <Sparkles className="w-4 h-4" /> AI Assistant 24/7
+          </h3>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin">
@@ -96,7 +102,7 @@ export const AiChatbotAssistant = () => {
             <div key={message.id} className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] ${message.isUser ? 'order-2' : ''}`}>
                 <div
-                  className={`px-3 py-2 rounded-xl text-sm ${
+                  className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${
                     message.isUser
                       ? 'bg-emerald-500 text-white rounded-br-md'
                       : 'bg-gray-100 text-gray-800 rounded-bl-md'
@@ -133,7 +139,7 @@ export const AiChatbotAssistant = () => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Nhập tin nhắn..."
+              placeholder="Hỏi về sự kiện UTEHY..."
               className="flex-1 px-3 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
             <button
@@ -178,11 +184,13 @@ export const AiChatbotAssistant = () => {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex flex-col h-full">
-                  <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                    <h3 className="font-bold text-gray-900">AI Assistant</h3>
+                  <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-emerald-500 to-emerald-400">
+                    <h3 className="font-bold text-white flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" /> AI Assistant
+                    </h3>
                     <button
                       onClick={() => setIsOpen(false)}
-                      className="p-2 text-gray-500 hover:text-gray-700 rounded-full"
+                      className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
                     >
                       <X className="h-5 w-5" />
                     </button>
@@ -192,7 +200,7 @@ export const AiChatbotAssistant = () => {
                     {messages.map((message) => (
                       <div key={message.id} className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}>
                         <div
-                          className={`max-w-[85%] px-3 py-2 rounded-xl text-sm ${
+                          className={`max-w-[85%] px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${
                             message.isUser
                               ? 'bg-emerald-500 text-white rounded-br-md'
                               : 'bg-gray-100 text-gray-800 rounded-bl-md'
@@ -219,7 +227,7 @@ export const AiChatbotAssistant = () => {
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyPress={handleKeyPress}
-                        placeholder="Nhập tin nhắn..."
+                        placeholder="Nhập câu hỏi của bạn..."
                         className="flex-1 px-3 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                       <button
