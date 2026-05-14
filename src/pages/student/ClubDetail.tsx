@@ -192,8 +192,12 @@ export const ClubDetail = () => {
   const [pastEvents, setPastEvents] = useState<Event[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  
+  const [isJoining, setIsJoining] = useState(false);
+  
   const [activeTab, setActiveTab] = useState<'posts' | 'events' | 'about'>('posts');
   const [isRegistering, setIsRegistering] = useState(false);
   const [registrationModal, setRegistrationModal] = useState<{
@@ -206,13 +210,24 @@ export const ClubDetail = () => {
       if (!slug) return;
       try {
         const clubRes = await pagesApi.getBySlug(slug);
-        const baseData = clubRes.data.data as PageWithMembers;
+        
+        // SỬA LỖI Ở ĐÂY: Hỗ trợ linh hoạt response data (có thể là res.data hoặc res.data.data)
+        const rawData = clubRes.data?.data || clubRes.data;
+        const baseData = rawData as PageWithMembers;
+        
+        // SỬA LỖI Ở ĐÂY: Kiểm tra cả các trường hợp đặt tên camelCase hoặc snake_case từ Backend
+        const followStatus = Boolean(
+          (baseData as any).is_following || 
+          (baseData as any).isFollowing || 
+          (baseData as any).is_followed || 
+          false
+        );
         
         const clubData: Club = {
           ...baseData,
           description: baseData.description ?? '',
           is_verified: true,
-          is_following: baseData.is_following ?? false,
+          is_following: followStatus, // Gán status đã kiểm tra an toàn
           _count: {
             followers: baseData._count?.followers ?? 0,
             events: baseData._count?.events ?? 0,
@@ -224,8 +239,9 @@ export const ClubDetail = () => {
           facebook_url: baseData.facebook_url ?? '',
           tiktok_url: baseData.tiktok_url ?? '',
         };
+        
         setClub(clubData);
-        setIsFollowing(clubData.is_following);
+        setIsFollowing(followStatus); // Cập nhật đúng State Follow
 
         const now = new Date();
         let eventsData: Event[] = [];
@@ -261,6 +277,7 @@ export const ClubDetail = () => {
       } catch (err) {
         console.error('Failed to fetch club data', err);
         setClub(mockClubData);
+        setIsFollowing(mockClubData.is_following); // Đảm bảo đồng bộ khi catch lỗi
         setUpcomingEvents(mockEvents.filter((e: Event) => isFuture(new Date(e.start_time))));
         setPastEvents(mockEvents.filter((e: Event) => isPast(new Date(e.end_time))));
         setPosts(mockPosts);
@@ -289,11 +306,9 @@ export const ClubDetail = () => {
       const status = err?.response?.status;
 
       if (!isFollowing && status === 409) {
-        // Backend says user already followed — sync state silently
         setIsFollowing(true);
         toast.success('Đã đồng bộ trạng thái theo dõi');
       } else if (isFollowing && (status === 404 || status === 400)) {
-        // Backend says user was not following — sync state silently
         setIsFollowing(false);
         toast.success('Đã đồng bộ trạng thái theo dõi');
       } else {
@@ -302,6 +317,20 @@ export const ClubDetail = () => {
       }
     } finally {
       setIsFollowLoading(false);
+    }
+  };
+
+  const handleJoinClub = async () => {
+    if (!club || isJoining) return;
+    try {
+      setIsJoining(true);
+      await (pagesApi as any).joinPage(club.id, { message: 'Tôi mong muốn được gia nhập CLB để học hỏi và phát triển ạ.' });
+      toast.success('Đã gửi yêu cầu gia nhập CLB thành công! Vui lòng chờ duyệt.');
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || 'Gửi yêu cầu thất bại, vui lòng thử lại';
+      toast.error(errorMsg);
+    } finally {
+      setIsJoining(false);
     }
   };
 
@@ -556,14 +585,21 @@ export const ClubDetail = () => {
                   ? 'Đang theo dõi'
                   : 'Theo dõi'}
               </Button>
+              
               <Button
                 variant="primary"
                 className="rounded-2xl px-5 sm:px-6 py-2.5 sm:py-3 font-bold text-sm bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-100 flex items-center gap-2"
-                onClick={() => setRegistrationModal({ isOpen: true, event: null })}
+                onClick={handleJoinClub}
+                disabled={isJoining}
               >
-                <Users className="h-4 w-4" />
-                Gia nhập CLB
+                {isJoining ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Users className="h-4 w-4" />
+                )}
+                {isJoining ? 'Đang gửi...' : 'Gia nhập CLB'}
               </Button>
+              
             <button
               onClick={handleShare}
               className="p-2.5 sm:p-3 bg-gray-100 rounded-2xl text-gray-500 hover:bg-emerald-100 hover:text-emerald-600 transition-all"

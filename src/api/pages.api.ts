@@ -145,6 +145,10 @@ export const pagesApi = {
   getMembers: (id: string) =>
     apiClient.get<{ data: PageMember[] }>(`/pages/${id}/members`),
 
+  joinPage: (id: string, data?: { message?: string }) => {
+    return apiClient.post(`/pages/${id}/join`, data);
+  },
+
   getJoinRequests: (id: string) =>
     apiClient.get<{ data: PageJoinRequest[] }>(`/pages/${id}/join-requests`),
 

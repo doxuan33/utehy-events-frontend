@@ -17,9 +17,18 @@ export default defineConfig(({mode}) => {
       dedupe: ['react', 'react-dom', 'sonner'],
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
+    },
+    build: {
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'react-router-dom', 'zustand'],
+            ui: ['sonner', 'lucide-react'],
+          },
+        },
+      },
     },
   };
 });
