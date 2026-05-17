@@ -20,23 +20,25 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
 
 interface Event {
-  id: string;
-  title: string;
-  description: string;
-  category_id: number;
-  location: string;
-  latitude?: string;
-  longitude?: string;
-  start_time: string;
-  end_time: string;
-  registration_deadline?: string;
-  max_slots?: number;
-  training_points?: number;
-  banner_url?: string;
-  status: string;
-  created_at?: string;
-  _count?: { registrations: number };
-}
+   id: string;
+   title: string;
+   description: string;
+   category_id: number;
+   location: string;
+   latitude?: string;
+   longitude?: string;
+   start_time: string;
+   end_time: string;
+   registration_deadline?: string;
+   max_slots?: number;
+   training_points?: number;
+   banner_url?: string;
+   status: string;
+   created_at?: string;
+   _count?: { registrations: number };
+   is_global?: boolean;
+   registration_type?: 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY';
+ }
 
 interface Category {
   id: number;
@@ -258,10 +260,11 @@ export const EventManagement = () => {
     const [isGeneratingPoster, setIsGeneratingPoster] = useState(false);
     const [posterImageUrl, setPosterImageUrl] = useState<string>('');
 
-  const [formData, setFormData] = useState({
-    title: '', description: '', category_id: '', location: '', latitude: '', longitude: '',
-    start_time: '', end_time: '', registration_deadline: '', max_participants: '', training_points: '', banner_url: '',
-  });
+const [formData, setFormData] = useState({
+     title: '', description: '', category_id: '', location: '', latitude: '', longitude: '',
+     start_time: '', end_time: '', registration_deadline: '', max_participants: '', training_points: '', banner_url: '',
+     is_global: false, registration_type: 'NORMAL' as 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY',
+   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
 
@@ -396,23 +399,24 @@ export const EventManagement = () => {
     });
   };
 
-  const handleOpenCreateModal = () => {
-    setEditingEventId(null);
-    setFormData({ title: '', description: '', category_id: String(categories[0]?.id || ''), location: '', latitude: '', longitude: '', start_time: '', end_time: '', registration_deadline: '', max_participants: '', training_points: '', banner_url: '' });
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImageFile(null); setImagePreview(''); setIsModalOpen(true);
-  };
+const handleOpenCreateModal = () => {
+     setEditingEventId(null);
+     setFormData({ title: '', description: '', category_id: String(categories[0]?.id || ''), location: '', latitude: '', longitude: '', start_time: '', end_time: '', registration_deadline: '', max_participants: '', training_points: '', banner_url: '', is_global: false, registration_type: 'NORMAL' });
+     if (imagePreview) URL.revokeObjectURL(imagePreview);
+     setImageFile(null); setImagePreview(''); setIsModalOpen(true);
+   };
 
-  const handleOpenEditModal = (event: any) => {
-    setEditingEventId(event.id);
-    setFormData({
-      title: event.title || '', description: event.description || '', category_id: event.category_id?.toString() || '', location: event.location || '', latitude: event.latitude?.toString() || '', longitude: event.longitude?.toString() || '',
-      start_time: event.start_time ? format(new Date(event.start_time), "yyyy-MM-dd'T'HH:mm") : '', end_time: event.end_time ? format(new Date(event.end_time), "yyyy-MM-dd'T'HH:mm") : '', registration_deadline: event.registration_deadline ? format(new Date(event.registration_deadline), "yyyy-MM-dd'T'HH:mm") : '',
-      max_participants: (event.max_slots || '').toString(), training_points: (event.training_points || 0).toString(), banner_url: event.banner_url || ''
-    });
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImageFile(null); setImagePreview(''); setIsModalOpen(true);
-  };
+const handleOpenEditModal = (event: any) => {
+     setEditingEventId(event.id);
+     setFormData({
+       title: event.title || '', description: event.description || '', category_id: event.category_id?.toString() || '', location: event.location || '', latitude: event.latitude?.toString() || '', longitude: event.longitude?.toString() || '',
+       start_time: event.start_time ? format(new Date(event.start_time), "yyyy-MM-dd'T'HH:mm") : '', end_time: event.end_time ? format(new Date(event.end_time), "yyyy-MM-dd'T'HH:mm") : '', registration_deadline: event.registration_deadline ? format(new Date(event.registration_deadline), "yyyy-MM-dd'T'HH:mm") : '',
+       max_participants: (event.max_slots || '').toString(), training_points: (event.training_points || 0).toString(), banner_url: event.banner_url || '',
+       is_global: event.is_global ?? false, registration_type: event.registration_type || 'NORMAL'
+     });
+     if (imagePreview) URL.revokeObjectURL(imagePreview);
+     setImageFile(null); setImagePreview(''); setIsModalOpen(true);
+   };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -515,12 +519,13 @@ export const EventManagement = () => {
       let endTime = formData.end_time ? new Date(formData.end_time) : new Date(startTime.getTime() + 3 * 60 * 60 * 1000);
       const registrationDeadline = formData.registration_deadline ? new Date(formData.registration_deadline) : new Date(startTime.getTime() - 24 * 60 * 60 * 1000);
 
-      const payload: any = {
-        page_id: page.id, title: formData.title.trim(), description: formData.description.trim(),
-        category_id: categoryId, location: formData.location.trim(), start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(), registration_deadline: registrationDeadline.toISOString(),
-        max_slots: maxSlots, training_points: trainingPoints, checkin_radius_m: 200, requires_approval: false, banner_url: bannerUrl || undefined,
-      };
+const payload: any = {
+         page_id: page.id, title: formData.title.trim(), description: formData.description.trim(),
+         category_id: categoryId, location: formData.location.trim(), start_time: startTime.toISOString(),
+         end_time: endTime.toISOString(), registration_deadline: registrationDeadline.toISOString(),
+         max_slots: maxSlots, training_points: trainingPoints, checkin_radius_m: 200, requires_approval: false,
+         banner_url: bannerUrl || undefined, is_global: formData.is_global, registration_type: formData.registration_type,
+       };
       if (latitude !== null && !isNaN(latitude)) payload.latitude = latitude;
       if (longitude !== null && !isNaN(longitude)) payload.longitude = longitude;
 
@@ -819,9 +824,48 @@ export const EventManagement = () => {
                         </div>
                       </div>
                     </div>
+</div>
+
+                   {/* ── Sự kiện Toàn trường & Loại đăng ký ── */}
+                   <div className="bg-white p-6 rounded-xl border border-green-100 shadow-sm space-y-4">
+                     <h3 className="text-sm font-bold text-green-700 uppercase tracking-wider mb-4 flex items-center gap-2"><UserCheck size={16} /> Cài đặt sự kiện</h3>
+                     <div className="flex flex-col md:flex-row gap-6">
+                       {/* Toggle: Toàn trường */}
+                       <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                         <div>
+                           <p className="text-sm font-medium text-gray-800">Sự kiện Toàn trường</p>
+                           <p className="text-xs text-gray-500 mt-1">Hiển thị trên trang chủ cho tất cả sinh viên</p>
+                         </div>
+                         <button
+                           type="button"
+                           role="switch"
+                           aria-checked={formData.is_global}
+                           onClick={() => setFormData(prev => ({ ...prev, is_global: !prev.is_global }))}
+                           className={`relative w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${formData.is_global ? 'bg-green-500' : 'bg-gray-300'}`}
+                         >
+                           <span
+                             className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${formData.is_global ? 'translate-x-6' : 'translate-x-0'}`}
+                           />
+                         </button>
+                       </div>
+
+                       {/* Select: Loại đăng ký */}
+                       <div className="flex-1">
+                         <label className="block text-sm font-medium text-gray-700 mb-1.5">Loại đăng ký</label>
+                         <select
+                           value={formData.registration_type}
+                           onChange={(e) => setFormData(prev => ({ ...prev, registration_type: e.target.value as 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY' }))}
+                           className="w-full px-4 py-2.5 bg-green-50/30 border border-green-100 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm"
+                         >
+                           <option value="NORMAL">Đăng ký tự nguyện</option>
+                           <option value="MANDATORY">Bắt buộc tham gia</option>
+                           <option value="CHECKIN_ONLY">Chỉ Check-in, không cần đăng ký</option>
+                         </select>
+                       </div>
+                     </div>
                    </div>
 
-                  {/* AI Poster Preview */}
+                   {/* AI Poster Preview */}
                   {posterImageUrl && (
                     <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-xl border border-pink-100 shadow-sm">
                       <div className="flex items-center justify-between mb-4">

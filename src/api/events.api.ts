@@ -34,11 +34,42 @@ export const eventsApi = {
   getPending: () =>
     apiClient.get('/events/pending'),
 
-  create: (data: any) =>
-    apiClient.post('/events', data),
+create: (data: {
+    page_id: string;
+    title: string;
+    description: string;
+    category_id?: number;
+    location?: string;
+    latitude?: number;
+    longitude?: number;
+    start_time: string;
+    end_time?: string;
+    registration_deadline?: string;
+    max_slots?: number;
+    training_points?: number;
+    requires_approval?: boolean;
+    is_global?: boolean;
+    registration_type?: 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY';
+    banner_url?: string;
+  }) => apiClient.post('/events', data),
 
-  update: (id: string, data: any) =>
-    apiClient.patch(`/events/${id}`, data),
+  update: (id: string, data: {
+    title?: string;
+    description?: string;
+    category_id?: number;
+    location?: string;
+    latitude?: number;
+    longitude?: number;
+    start_time?: string;
+    end_time?: string;
+    registration_deadline?: string;
+    max_slots?: number;
+    training_points?: number;
+    requires_approval?: boolean;
+    is_global?: boolean;
+    registration_type?: 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY';
+    banner_url?: string;
+  }) => apiClient.patch(`/events/${id}`, data),
 
   approve: (id: string) =>
     apiClient.patch(`/events/${id}/approve`),
@@ -46,6 +77,9 @@ export const eventsApi = {
   reject: (id: string, reason: string) =>
     apiClient.patch(`/events/${id}/reject`, { reason }),
 
-  delete: (id: string, page_id: string) =>
-    apiClient.delete(`/events/${id}`, { data: { page_id } }),
+delete: (id: string, page_id: string) =>
+     apiClient.delete(`/events/${id}`, { data: { page_id } }),
+
+  importMandatoryStudents: (eventId: string | number, studentIds: string[]) =>
+     apiClient.post(`/events/${eventId}/import-mandatory`, { studentIds }),
 };

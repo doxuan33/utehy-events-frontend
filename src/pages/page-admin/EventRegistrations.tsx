@@ -15,18 +15,18 @@ import {
   QrCode,
   Camera,
   UserCheck,
-  Filter,
   RefreshCw,
   FileDown,
-  CornerDownRight,
   X,
+  Upload,
+  Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import confetti from 'canvas-confetti';
-// ĐÃ SỬA: Import Html5Qrcode thay vì Html5QrcodeScanner để tự mở camera
 import { Html5Qrcode } from 'html5-qrcode';
+import { useAuthStore } from '@/store/auth.store';
 
 type Registration = {
   id: string;
@@ -69,8 +69,11 @@ export const EventRegistrations = () => {
   const [showSuccessModal, setShowSuccessModal] = useState<{ name: string; id: string } | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   
-  // ĐÃ SỬA: Đổi kiểu tham chiếu sang Html5Qrcode
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const { user } = useAuthStore();
 
   // Fetch data
   useEffect(() => {
@@ -95,10 +98,11 @@ export const EventRegistrations = () => {
         return;
       }
 
-      const regRes = await registrationsApi.getEventRegistrations(eventId, currentPageId);
+      // Thêm limit: 1000 để lấy toàn bộ thay vì bị cắt ở 10 bản ghi mặc định
+      const regRes = await registrationsApi.getEventRegistrations(eventId, currentPageId, { limit: 1000 });
       
       const rawPayload = regRes.data?.data;
-      const registrationArray = rawPayload?.data;
+      const registrationArray = Array.isArray(rawPayload) ? rawPayload : (rawPayload?.data || []);
 
       if (Array.isArray(registrationArray)) {
         const sortedReg = [...registrationArray].sort((a: Registration, b: Registration) =>
@@ -107,13 +111,10 @@ export const EventRegistrations = () => {
         setRegistrations(sortedReg);
       } else {
         setRegistrations([]);
-        console.warn('Lưu ý: Không có mảng dữ liệu trả về hợp lệ từ API.');
       }
-      
     } catch (err: any) {
       console.error('Lỗi khi fetch dữ liệu registrations:', err);
       toast.error(err.response?.data?.message || 'Không thể tải dữ liệu');
-      setRegistrations([]);
     } finally {
       setIsLoading(false);
     }
@@ -130,24 +131,34 @@ export const EventRegistrations = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Manual check-in
-  const handleManualCheckin = async (registrationId: string, studentId: string) => {
-    setIsCheckingIn(registrationId);
+  // Gọi trực tiếp API checkin (Cho phép checkin bù / walk-in)
+  const handleCheckinByStudentId = async (studentId: string) => {
+    if (!studentId.trim()) {
+      toast.error('Vui lòng nhập MSSV');
+      return;
+    }
+
+    setIsCheckingIn(studentId);
     try {
-      await checkinApi.manualCheckin({ event_id: eventId!, student_id: studentId });
-      setRegistrations(prev => prev.map(r =>
-        r.id === registrationId ? { ...r, status: 'ATTENDED' } : r
-      ));
+      // API checkinApi.manualCheckin chỉ cần event_id và student_id
+      await checkinApi.manualCheckin({ event_id: eventId!, student_id: studentId.trim() });
       triggerConfetti();
-      toast.success('Điểm danh thành công!');
+      toast.success(`Điểm danh thành công: ${studentId}`);
+      
+      if (scannedStudentId === studentId) setScannedStudentId('');
+      
+      // Gọi lại API để lấy danh sách mới nhất (để hiển thị người vừa điểm danh bù)
+      fetchInitialData();
+      
+      setShowSuccessModal({ name: "Sinh viên", id: studentId.trim() });
+      setTimeout(() => setShowSuccessModal(null), 3000);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Điểm danh thất bại');
+      toast.error(err.response?.data?.message || `Điểm danh thất bại cho MSSV: ${studentId}`);
     } finally {
       setIsCheckingIn(null);
     }
   };
 
-  // Trigger confetti
   const triggerConfetti = () => {
     confetti({
       particleCount: 150,
@@ -157,29 +168,6 @@ export const EventRegistrations = () => {
     });
   };
 
-  const handleMockScan = async () => {
-    if (!scannedStudentId.trim()) {
-      toast.error('Vui lòng nhập MSSV');
-      return;
-    }
-
-    const reg = registrations.find(r =>
-      r.user.profile?.student_id === scannedStudentId.trim() && r.status !== 'ATTENDED'
-    );
-
-    if (!reg) {
-      toast.error('Không tìm thấy sinh viên chưa điểm danh');
-      return;
-    }
-
-    const studentName = reg.user.profile?.full_name || '';
-    await handleManualCheckin(reg.id, scannedStudentId.trim());
-    setScannedStudentId('');
-    setShowSuccessModal({ name: studentName, id: scannedStudentId.trim() });
-    setTimeout(() => setShowSuccessModal(null), 3000);
-  };
-
-  // ĐÃ SỬA: Logic Stop Scanner chuẩn của Html5Qrcode
   const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
       try {
@@ -195,33 +183,26 @@ export const EventRegistrations = () => {
     setIsCameraOpen(false);
   }, []);
 
-  // ĐÃ SỬA: Logic Start Scanner ép mở Camera trực tiếp
   const startScanner = useCallback(() => {
     setIsCameraOpen(true);
-    
-    // Đợi UI render xong div qr-reader-admin
     setTimeout(async () => {
       try {
         const html5QrCode = new Html5Qrcode("qr-reader-admin");
         scannerRef.current = html5QrCode;
 
         await html5QrCode.start(
-          { facingMode: "environment" }, // Bắt buộc dùng camera sau (hoặc camera có sẵn)
+          { facingMode: "environment" }, 
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
           },
           (decodedText) => {
-            // Khi quét thành công gọi hàm này
             onScanSuccess(decodedText);
           },
-          (errorMessage) => {
-            // Log lỗi nhẹ (do quét liên tục nên không hiện toast ở đây)
-          }
+          () => {}
         );
       } catch (err: any) {
-        console.error("Camera start error:", err);
         toast.error('Vui lòng cho phép trình duyệt truy cập Camera!');
         setIsCameraOpen(false);
       }
@@ -229,36 +210,17 @@ export const EventRegistrations = () => {
   }, []);
 
   const onScanSuccess = useCallback(async (decodedText: string) => {
-    // Quét xong tắt camera đi để xử lý
     await stopScanner();
-    
-    const reg = registrations.find(r =>
-      r.user.profile?.student_id === decodedText && r.status !== 'ATTENDED'
-    );
-
-    if (!reg) {
-      toast.error(`Mã ${decodedText}: Không tìm thấy SV chưa điểm danh`);
-      return;
-    }
-
-    const studentName = reg.user.profile?.full_name || '';
-    await handleManualCheckin(reg.id, decodedText);
-    setShowSuccessModal({ name: studentName, id: decodedText });
-    setTimeout(() => setShowSuccessModal(null), 3000);
-  }, [registrations, stopScanner]);
-
-  // Cleanup scanner on unmount
-  useEffect(() => {
-    return () => {
-      stopScanner();
-    };
+    // Gửi thẳng decodedText lên backend (Chấp nhận cả trường hợp checkin bù / chưa đăng ký)
+    await handleCheckinByStudentId(decodedText);
   }, [stopScanner]);
 
-  // Stop scanner when switching away from scanner tab
   useEffect(() => {
-    if (activeTab !== 'scanner') {
-      stopScanner();
-    }
+    return () => { stopScanner(); };
+  }, [stopScanner]);
+
+  useEffect(() => {
+    if (activeTab !== 'scanner') stopScanner();
   }, [activeTab, stopScanner]);
 
   // Export to Excel
@@ -279,6 +241,71 @@ export const EventRegistrations = () => {
     toast.success('Xuất Excel thành công!');
   };
 
+  // Download Template Import
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([
+      { 'MSSV': 'SV001', 'Ghi chú': 'Nhập mã số sinh viên vào cột MSSV' },
+      { 'MSSV': 'SV002', 'Ghi chú': '' }
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, `template_import_danh_sach.xlsx`);
+  };
+
+  // Import mandatory students from file
+  const handleImportMandatory = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData: any[] = XLSX.utils.sheet_to_json(firstSheet);
+
+      const studentIds: string[] = [];
+      for (const row of jsonData) {
+        const keys = Object.keys(row);
+        const mssvKey = keys.find(
+          (k) => k.trim().toLowerCase() === 'mssv' || k.trim().toLowerCase() === 'student_id'
+        );
+        if (mssvKey) {
+          const val = row[mssvKey];
+          if (val != null && val !== '') {
+            studentIds.push(String(val).trim());
+          }
+        }
+      }
+
+      if (studentIds.length === 0) {
+        toast.error('Không tìm thấy cột MSSV trong file (Vui lòng dùng file mẫu)');
+        return;
+      }
+
+      toast.loading('Đang nhập danh sách sinh viên...', { id: 'import-loading' });
+      const result = await eventsApi.importMandatoryStudents(eventId!, studentIds);
+      toast.dismiss('import-loading');
+      toast.success(result.data?.message || 'Import danh sách thành công!');
+
+      fetchInitialData();
+
+      if (importFileRef.current) {
+        importFileRef.current.value = '';
+      }
+    } catch (err: any) {
+      toast.dismiss('import-loading');
+      toast.error(err.response?.data?.message || 'Lỗi khi import danh sách');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Trigger hidden file input
+  const triggerFileImport = () => {
+    importFileRef.current?.click();
+  };
+
   // Stats
   const totalRegistered = registrations.length;
   const totalAttended = registrations.filter(r => r.status === 'ATTENDED').length;
@@ -297,17 +324,12 @@ export const EventRegistrations = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(-1)}
-            className="mb-2"
-          >
+          <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="mb-2">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Quay lại
           </Button>
           <h1 className="text-2xl font-bold text-gray-900">{event?.title}</h1>
-          <p className="text-gray-500 text-sm">Quản lý đăng ký & điểm danh</p>
+          <p className="text-gray-500 text-sm">Quản lý người tham gia & điểm danh</p>
         </div>
       </div>
 
@@ -316,7 +338,7 @@ export const EventRegistrations = () => {
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Tổng vé phát ra</p>
+              <p className="text-sm text-gray-500">Giới hạn vé</p>
               <p className="text-2xl font-bold text-gray-900">{event?.max_slots || 'Không giới hạn'}</p>
             </div>
             <div className="p-3 bg-emerald-50 rounded-xl">
@@ -347,7 +369,7 @@ export const EventRegistrations = () => {
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Đã Check-in</p>
+              <p className="text-sm text-gray-500">Đã Check-in (Bao gồm điểm danh bù)</p>
               <p className="text-2xl font-bold text-emerald-600">{totalAttended}</p>
             </div>
             <div className="p-3 bg-emerald-50 rounded-xl">
@@ -357,16 +379,40 @@ export const EventRegistrations = () => {
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" size="sm" onClick={handleExportExcel}>
-          <FileDown className="h-4 w-4 mr-2" />
-          Xuất Excel
-        </Button>
-        <Button variant="outline" size="sm" onClick={fetchInitialData}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Tải lại dữ liệu
-        </Button>
+      {/* Cụm công cụ (Action Buttons) */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {user?.role === 'PAGE_ADMIN' && event?.page_id && (
+            <>
+              <Button variant="primary" size="sm" onClick={triggerFileImport} disabled={isImporting} className="bg-blue-600 hover:bg-blue-700">
+                <Upload className="h-4 w-4 mr-2" />
+                {isImporting ? 'Đang tải lên...' : 'Import Danh Sách SV'}
+              </Button>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                className="hidden"
+                onChange={handleImportMandatory}
+              />
+              <Button variant="ghost" size="sm" onClick={handleDownloadTemplate} className="text-gray-600">
+                <Download className="h-4 w-4 mr-2" />
+                Tải File Mẫu
+              </Button>
+            </>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportExcel}>
+            <FileDown className="h-4 w-4 mr-2" />
+            Xuất Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchInitialData}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Tải lại
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -390,7 +436,7 @@ export const EventRegistrations = () => {
           }`}
         >
           <QrCode className="h-4 w-4" />
-          Quét mã QR
+          Quét mã QR / Điểm danh bù
         </button>
       </div>
 
@@ -403,27 +449,54 @@ export const EventRegistrations = () => {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-4"
           >
-            {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            {/* Action Bar / Filters */}
+            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+              
+              {/* Điểm danh bù nhanh */}
+              <div className="flex items-center gap-2 w-full lg:w-auto bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-100">
+                <span className="text-emerald-800 font-medium text-sm hidden sm:flex items-center whitespace-nowrap">
+                  <UserCheck className="w-4 h-4 mr-2"/> Điểm danh bù:
+                </span>
                 <input
                   type="text"
-                  placeholder="Tìm theo MSSV, Tên sinh viên..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Nhập MSSV cần điểm danh..."
+                  value={scannedStudentId}
+                  onChange={(e) => setScannedStudentId(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCheckinByStudentId(scannedStudentId)}
+                  className="w-full lg:w-48 px-3 py-1.5 border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                 />
+                <Button 
+                  size="sm" 
+                  onClick={() => handleCheckinByStudentId(scannedStudentId)} 
+                  disabled={isCheckingIn === scannedStudentId}
+                  className="whitespace-nowrap"
+                >
+                  {isCheckingIn === scannedStudentId ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Xác nhận'}
+                </Button>
               </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="ALL">Tất cả trạng thái</option>
-                <option value="REGISTERED">Chưa điểm danh</option>
-                <option value="ATTENDED">Đã điểm danh</option>
-              </select>
+
+              {/* Tìm kiếm & Lọc */}
+              <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+                <div className="relative flex-1 lg:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Tìm sinh viên..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                  />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                >
+                  <option value="ALL">Tất cả trạng thái</option>
+                  <option value="REGISTERED">Chưa điểm danh</option>
+                  <option value="ATTENDED">Đã điểm danh</option>
+                </select>
+              </div>
             </div>
 
             {/* Table */}
@@ -481,14 +554,15 @@ export const EventRegistrations = () => {
                             {reg.status !== 'ATTENDED' && (
                               <Button
                                 size="sm"
-                                onClick={() => handleManualCheckin(reg.id, reg.user.profile?.student_id || reg.user.id)}
-                                disabled={isCheckingIn === reg.id}
+                                onClick={() => handleCheckinByStudentId(reg.user.profile?.student_id || reg.user.id)}
+                                disabled={isCheckingIn === (reg.user.profile?.student_id || reg.user.id)}
                                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                title="Điểm danh"
                               >
-                                {isCheckingIn === reg.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                {isCheckingIn === (reg.user.profile?.student_id || reg.user.id) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <CheckCircle2 className="h-3 w-3" />
+                                  <CheckCircle2 className="h-4 w-4" />
                                 )}
                               </Button>
                             )}
@@ -497,8 +571,9 @@ export const EventRegistrations = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                          Không tìm thấy sinh viên nào
+                        <td colSpan={6} className="px-4 py-12 text-center">
+                          <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500">Chưa có dữ liệu hoặc không tìm thấy sinh viên</p>
                         </td>
                       </tr>
                     )}
@@ -552,68 +627,44 @@ export const EventRegistrations = () => {
                 )}
               </div>
 
-              <p className="text-center text-gray-600 mt-4">
-                Đưa mã QR trên vé điện tử của sinh viên vào khung hình
+              <p className="text-center text-gray-600 mt-4 text-sm">
+                Đưa mã QR của sinh viên vào khung hình. <br/> 
+                <span className="text-xs text-emerald-600">*Hỗ trợ quét thẻ để điểm danh bù.</span>
               </p>
 
               {/* Camera Toggle Button */}
               {!isCameraOpen ? (
-                <Button
-                  onClick={startScanner}
-                  className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
+                <Button onClick={startScanner} className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white">
                   <Camera className="h-4 w-4 mr-2" />
-                  Bật Camera
+                  Bật Camera Quét QR
                 </Button>
               ) : (
-                <Button
-                  onClick={stopScanner}
-                  variant="outline"
-                  className="w-full mt-4"
-                >
+                <Button onClick={stopScanner} variant="outline" className="w-full mt-4">
                   <X className="h-4 w-4 mr-2" />
                   Tắt Camera
                 </Button>
               )}
             </div>
 
-            {/* Mock Scan Input */}
-            <div className="max-w-md mx-auto bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-              <p className="text-sm text-gray-600 mb-2">Giả lập quét mã (nhập MSSV):</p>
+            {/* Quick actions under scanner */}
+            <div className="max-w-md mx-auto bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+              <p className="text-sm text-emerald-800 font-medium mb-2 flex items-center">
+                <UserCheck className="w-4 h-4 mr-2"/>
+                Gõ tay điểm danh nhanh / Điểm danh bù
+              </p>
               <div className="flex gap-2">
                 <input
                   type="text"
                   placeholder="Nhập MSSV..."
                   value={scannedStudentId}
                   onChange={(e) => setScannedStudentId(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleMockScan()}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  onKeyDown={(e) => e.key === 'Enter' && handleCheckinByStudentId(scannedStudentId)}
+                  className="flex-1 px-3 py-2 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                 />
-                <Button onClick={handleMockScan}>
-                  <Camera className="h-4 w-4 mr-2" />
-                  Quét
+                <Button onClick={() => handleCheckinByStudentId(scannedStudentId)} disabled={isCheckingIn === scannedStudentId}>
+                  {isCheckingIn === scannedStudentId ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Xác nhận'}
                 </Button>
               </div>
-            </div>
-
-            {/* Quick actions */}
-            <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setActiveTab('list')}
-                className="w-full"
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Xem danh sách
-              </Button>
-              <Button
-                variant="outline"
-                onClick={fetchInitialData}
-                className="w-full"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Làm mới
-              </Button>
             </div>
           </motion.div>
         )}
@@ -626,15 +677,15 @@ export const EventRegistrations = () => {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
           >
-            <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center">
+            <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center border-t-4 border-emerald-500">
               <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="h-8 w-8 text-emerald-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Điểm danh thành công!</h3>
-              <p className="text-gray-600 break-words">
-                {showSuccessModal.name} <span className="font-mono text-sm bg-gray-100 px-1 rounded">{showSuccessModal.id}</span>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">Điểm danh thành công!</h3>
+              <p className="text-gray-600 mt-2">
+                MSSV: <span className="font-mono font-bold text-lg text-emerald-700 bg-emerald-50 px-2 py-1 rounded">{showSuccessModal.id}</span>
               </p>
             </div>
           </motion.div>
