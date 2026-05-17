@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { postsApi } from '@/api/posts.api';
 import { eventsApi } from '@/api/events.api';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Filter, RefreshCw } from 'lucide-react';
 import { PostCard } from '@/components/student/PostCard';
 import { FeedEventCard } from '@/components/student/FeedEventCard';
 import { HeroEventBanner } from '@/components/student/HeroEventBanner';
@@ -28,20 +28,38 @@ export const Newsfeed = () => {
         setError(null);
       }
 
-      const postsRes = await postsApi.getNewsfeed({
-        cursor: isLoadMore ? postCursor || undefined : undefined,
-        limit: 10
-      });
+      // [TỐI ƯU N+1 / WATERFALL]: Gom 2 Request chạy SONG SONG
+      // Giúp giảm một nửa thời gian chờ API
+      const promises: any[] = [
+        postsApi.getNewsfeed({
+          cursor: isLoadMore ? postCursor || undefined : undefined,
+          limit: 10
+        })
+      ];
+
+      // Chỉ thêm API Event nếu còn dữ liệu để kéo
+      if (hasMoreEvents || !isLoadMore) {
+        promises.push(
+          eventsApi.getAll({
+            page: isLoadMore ? eventPage + 1 : 1,
+            limit: 10,
+            status: 'APPROVED'
+          })
+        );
+      } else {
+        promises.push(Promise.resolve(null)); // Placeholder để index không bị sai
+      }
+
+      const [postsRes, eventsRes] = await Promise.all(promises);
+
+      // Xử lý Posts
       const postsData = postsRes.data.data;
       const newPosts = (postsData.data || []).map((p: any) => ({ ...p, feedType: 'post' }));
+      setPostCursor(postsData.next_cursor);
 
+      // Xử lý Events
       let newEvents: any[] = [];
-      if (hasMoreEvents) {
-        const eventsRes = await eventsApi.getAll({
-          page: isLoadMore ? eventPage + 1 : 1,
-          limit: 10,
-          status: 'APPROVED'
-        });
+      if (eventsRes) {
         const eventsData = eventsRes.data.data;
         newEvents = (eventsData.data || []).map((e: any) => ({ ...e, feedType: 'event' }));
 
@@ -49,18 +67,19 @@ export const Newsfeed = () => {
         if (isLoadMore) setEventPage(prev => prev + 1);
       }
 
+      // Merge và Sắp xếp
       const combined = [...newPosts, ...newEvents].sort((a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        new Date(b.created_at || b.start_time).getTime() - new Date(a.created_at || a.start_time).getTime()
       );
 
       setFeedItems(prev => isLoadMore ? [...prev, ...combined] : combined);
-      setPostCursor(postsData.next_cursor);
+      
     } catch (err: any) {
       console.error('Failed to fetch feed', err);
       if (err.response?.status === 429) {
         setError('Hệ thống đang bận. Vui lòng thử lại sau ít phút.');
       } else {
-        setError('Không thể tải bảng tin. Vui lòng thử lại sau.');
+        setError('Không thể tải bảng tin. Vui lòng kiểm tra lại kết nối mạng.');
       }
     } finally {
       setIsLoading(false);
@@ -70,7 +89,7 @@ export const Newsfeed = () => {
 
   useEffect(() => {
     fetchFeed();
-  }, []);
+  }, [fetchFeed]);
 
   const handleLoadMore = () => {
     if ((postCursor || hasMoreEvents) && !isFetchingMore) {
@@ -88,49 +107,97 @@ export const Newsfeed = () => {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="w-full h-64 md:h-80 rounded-2xl bg-gray-200 animate-pulse" />
+        <div className="w-full h-64 md:h-80 rounded-2xl bg-green-50/50 animate-pulse border border-green-100" />
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white border border-gray-100 rounded-xl p-6 h-64 animate-pulse shadow-sm" />
+          <div key={i} className="bg-white border border-green-100 rounded-2xl p-6 h-64 animate-pulse shadow-sm" />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <CheckinWidget className="block lg:hidden mb-4" />
+    <div className="space-y-6 max-w-[800px] mx-auto pb-20">
+      
+      {/* Widget Checkin Mobile */}
+      <CheckinWidget className="block lg:hidden mb-4 shadow-sm border-green-100" />
 
+      {/* Hero Banner */}
       <HeroEventBanner />
 
-      <h2 className="text-lg font-bold text-gray-900">Bảng tin cộng đồng</h2>
+      {/* Feed Header with Filters */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-8 mb-2">
+        <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-teal-600 tracking-tight flex items-center">
+          Bảng tin <Sparkles className="h-5 w-5 ml-2 text-green-500" />
+        </h2>
 
+        {/* Filter Buttons */}
+        <div className="flex bg-white rounded-xl shadow-sm border border-green-100 p-1">
+          <button
+            onClick={() => setActiveFilter('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeFilter === 'all' 
+                ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-sm' 
+                : 'text-gray-500 hover:text-green-700 hover:bg-green-50'
+            }`}
+          >
+            Tất cả
+          </button>
+          <button
+            onClick={() => setActiveFilter('events')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeFilter === 'events' 
+                ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-sm' 
+                : 'text-gray-500 hover:text-green-700 hover:bg-green-50'
+            }`}
+          >
+            Sự kiện
+          </button>
+          <button
+            onClick={() => setActiveFilter('posts')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeFilter === 'posts' 
+                ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-sm' 
+                : 'text-gray-500 hover:text-green-700 hover:bg-green-50'
+            }`}
+          >
+            Bài viết
+          </button>
+        </div>
+      </div>
+
+      {/* Error State */}
       {error ? (
-        <div className="bg-red-50 border border-red-100 rounded-xl p-6 text-center">
-          <p className="text-red-600 font-medium">{error}</p>
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center shadow-sm">
+          <p className="text-red-600 font-bold mb-4">{error}</p>
           <button
             onClick={() => fetchFeed()}
-            className="mt-4 px-6 py-2 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors"
+            className="px-6 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-sm inline-flex items-center"
           >
+            <RefreshCw className="h-4 w-4 mr-2" />
             Thử lại
           </button>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="text-center py-20 bg-white border border-gray-100 rounded-xl shadow-sm">
-          <Sparkles className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-gray-900 mb-2">Bảng tin trống</h3>
-          <p className="text-gray-500 max-w-xs mx-auto">
-            Hãy theo dõi các Câu lạc bộ để cập nhật những tin tức và sự kiện mới nhất!
+        <div className="text-center py-24 bg-white border border-green-100 rounded-2xl shadow-sm">
+          <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-100">
+            <Filter className="h-10 w-10 text-green-400" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-800 mb-2">Bảng tin trống</h3>
+          <p className="text-gray-500 max-w-sm mx-auto font-medium">
+            Hãy theo dõi các Câu lạc bộ để cập nhật những tin tức và sự kiện nóng hổi nhất!
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-8">
           <AnimatePresence mode="popLayout">
             {filteredItems.map((item) => (
               <motion.div
                 key={`${item.feedType}-${item.id}`}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className="transform-gpu"
               >
                 {item.feedType === 'post' ? (
                   <PostCard post={item} />
@@ -140,21 +207,20 @@ export const Newsfeed = () => {
               </motion.div>
             ))}
           </AnimatePresence>
-
           {(postCursor || hasMoreEvents) && (
-            <div className="flex justify-center py-4">
+            <div className="flex justify-center pt-6 pb-12">
               <button
                 onClick={handleLoadMore}
                 disabled={isFetchingMore}
-                className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+                className="flex items-center gap-2 px-8 py-3.5 bg-white border border-green-200 rounded-full text-sm font-bold text-green-700 hover:bg-green-50 hover:border-green-300 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
               >
                 {isFetchingMore ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Đang tải...</span>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Đang tải thêm...</span>
                   </>
                 ) : (
-                  <span>Xem thêm bài viết</span>
+                  <span>Tải thêm tin mới</span>
                 )}
               </button>
             </div>

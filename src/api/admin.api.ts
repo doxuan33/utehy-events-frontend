@@ -7,7 +7,8 @@ export const adminApi = {
   getPendingEvents: () =>
     apiClient.get('/admin/events/pending'),
 
-  getTrainingPointsReport: (params?: { page?: number; limit?: number }) =>
+  // [FIX] Đổi params từ { page, limit } → { semester } cho đúng với Backend
+  getTrainingPointsReport: (params?: { semester?: string }) =>
     apiClient.get('/admin/reports/training-points', { params }),
 
   exportTrainingPoints: () =>
@@ -21,7 +22,13 @@ export const adminApi = {
   getEventsReport: (year?: number) =>
     apiClient.get('/admin/reports/events', { params: { year } }),
 
-  createCategory: (data: { name: string; description?: string; icon?: string }) =>
+  // [FIX] Đổi payload từ { name, description, icon } → { name, default_training_points, color_hex }
+  // cho đúng với những gì adminController.createCategory destructure từ req.body
+  createCategory: (data: {
+    name: string;
+    default_training_points?: number;
+    color_hex?: string;
+  }) =>
     apiClient.post('/admin/categories', data),
 
   updateCategory: (id: string, data: any) =>
@@ -35,5 +42,4 @@ export const adminApi = {
 
   createBadge: (data: any) =>
     apiClient.post('/admin/badges', data),
-
 };

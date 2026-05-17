@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { registrationsApi } from '@/api/registrations.api';
 import { Badge } from '@/components/common/Badge';
@@ -18,7 +18,7 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { Calendar as BigCalendar, dateFnsLocalizer } from 'react-big-calendar';
+import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -61,7 +61,23 @@ export const MyEvents = () => {
   const [selectedQr, setSelectedQr] = useState<string | null>(null);
 
   const [calendarDate, setCalendarDate] = useState(new Date());
-  const [calendarView, setCalendarView] = useState<CalendarViewMode>('month');
+  const [calendarView, setCalendarView] = useState<CalendarViewMode>(Views.MONTH as CalendarViewMode);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Detect mobile for better Calendar default view
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile && calendarView === Views.MONTH) {
+        setCalendarView(Views.AGENDA as CalendarViewMode); // Force agenda view on mobile
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [calendarView]);
 
   useEffect(() => {
     const fetchMyEvents = async () => {
@@ -81,32 +97,32 @@ export const MyEvents = () => {
 
   const now = new Date();
   
-  const upcomingEvents = registrations.filter(reg => {
+  const upcomingEvents = useMemo(() => registrations.filter(reg => {
     const endTime = new Date(reg.event?.end_time || reg.event?.start_time || reg.created_at);
     return now < endTime; 
-  });
+  }), [registrations]);
 
-  const pastEvents = registrations.filter(reg => {
+  const pastEvents = useMemo(() => registrations.filter(reg => {
     const endTime = new Date(reg.event?.end_time || reg.event?.start_time || reg.created_at);
     return now >= endTime; 
-  });
+  }), [registrations]);
 
   const totalEvents = registrations.length;
-  const totalPoints = registrations
+  const totalPoints = useMemo(() => registrations
     .filter(r => r.status === 'ATTENDED')
-    .reduce((sum, r) => sum + (r.event?.training_points || 0), 0);
+    .reduce((sum, r) => sum + (r.event?.training_points || 0), 0), [registrations]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ATTENDED':
-        return { variant: 'success' as const, label: 'Đã tham gia', className: 'bg-emerald-100 text-emerald-700 border border-emerald-200' };
+        return { variant: 'success' as const, label: 'Đã tham gia', className: 'bg-green-50 text-green-700 border border-green-200' };
       case 'ABSENT':
-        return { variant: 'danger' as const, label: 'Vắng mặt', className: 'bg-red-100 text-red-700 border border-red-200' };
+        return { variant: 'danger' as const, label: 'Vắng mặt', className: 'bg-red-50 text-red-700 border border-red-200' };
       case 'CANCELLED':
-        return { variant: 'secondary' as const, label: 'Đã hủy', className: 'bg-gray-100 text-gray-700 border border-gray-200' };
+        return { variant: 'secondary' as const, label: 'Đã hủy', className: 'bg-gray-50 text-gray-700 border border-gray-200' };
       case 'REGISTERED':
       default:
-        return { variant: 'primary' as const, label: 'Chờ duyệt', className: 'bg-amber-100 text-amber-700 border border-amber-200' };
+        return { variant: 'primary' as const, label: 'Chờ duyệt', className: 'bg-teal-50 text-teal-700 border border-teal-200' };
     }
   };
 
@@ -114,19 +130,19 @@ export const MyEvents = () => {
     return user?.student_id || reg.id;
   };
 
-  const calendarEvents = registrations.map((reg: any) => ({
+  const calendarEvents = useMemo(() => registrations.map((reg: any) => ({
     id: reg.id,
     title: reg.event?.title || 'Sự kiện UTEHY',
     start: new Date(reg.event?.start_time),
-    end: new Date(reg.event?.end_time),
+    end: new Date(reg.event?.end_time || reg.event?.start_time), // Phải có end để Agenda hiển thị
     resource: reg,
-  }));
+  })), [registrations]);
 
   const eventPropGetter = (event: any) => {
     const status = event.resource?.status;
-    if (status === 'ATTENDED') return { style: { backgroundColor: '#10b981', color: 'white', border: 'none' } }; 
-    if (status === 'ABSENT') return { style: { backgroundColor: '#ef4444', color: 'white', border: 'none' } }; 
-    return { style: { backgroundColor: '#3b82f6', color: 'white', border: 'none' } }; 
+    if (status === 'ATTENDED') return { style: { backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px' } }; // green-500
+    if (status === 'ABSENT') return { style: { backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px' } }; // red-500
+    return { style: { backgroundColor: '#14b8a6', color: 'white', border: 'none', borderRadius: '4px' } }; // teal-500
   };
 
   const displayedEvents = activeTab === 'upcoming' ? upcomingEvents : pastEvents;
@@ -135,48 +151,36 @@ export const MyEvents = () => {
     <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-24 px-3 sm:px-6 pt-2 sm:pt-4">
       
       {/* CSS fix Lịch trên Mobile */}
-      <style>{`
-        @media (max-width: 640px) {
-          .rbc-toolbar {
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 12px;
-          }
-          .rbc-toolbar .rbc-btn-group {
-            display: flex;
-            width: 100%;
-            justify-content: center;
-          }
-          .rbc-toolbar button {
-            padding: 4px 10px;
-            font-size: 12px;
-            flex: 1;
-          }
-          .rbc-toolbar .rbc-toolbar-label {
-            font-size: 14px;
-            font-weight: 700;
-          }
-          .rbc-header {
-            font-size: 11px;
-            padding: 4px 0;
-          }
-          .rbc-event {
-            font-size: 10px;
-            padding: 2px 4px;
-          }
+      <style dangerouslySetInnerHTML={{__html: `
+        /* Custom UI for React Big Calendar to match Green Theme */
+        .rbc-today { background-color: #ecfdf5 !important; }
+        .rbc-event { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .rbc-btn-group button.rbc-active { background-color: #10b981 !important; color: white !important; border-color: #10b981 !important; box-shadow: none !important; }
+        .rbc-btn-group button:hover:not(.rbc-active) { background-color: #d1fae5 !important; color: #047857 !important; }
+        
+        /* Mobile specific fixes */
+        @media (max-width: 768px) {
+          .rbc-toolbar { flex-direction: column; gap: 8px; margin-bottom: 12px; }
+          .rbc-toolbar .rbc-btn-group { display: flex; width: 100%; justify-content: center; }
+          .rbc-toolbar button { padding: 6px 12px; font-size: 13px; flex: 1; }
+          .rbc-toolbar .rbc-toolbar-label { font-size: 16px; font-weight: 800; color: #065f46; }
+          .rbc-agenda-view table.rbc-agenda-table { font-size: 13px; }
+          .rbc-agenda-date-cell { white-space: nowrap; font-weight: bold; color: #047857; }
+          /* Ẩn bớt view month/week trên mobile để bắt user xài Agenda cho khỏe */
+          .rbc-btn-group:nth-child(3) button:not(:last-child) { display: none; }
         }
-      `}</style>
+      `}} />
 
       {/* Header */}
       <div className="flex items-center space-x-3">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-xl transition-colors shrink-0 bg-white shadow-sm sm:shadow-none sm:bg-transparent"
+          className="p-2 hover:bg-green-50 rounded-xl transition-colors shrink-0 bg-white shadow-sm sm:shadow-none sm:bg-transparent border border-gray-100 sm:border-transparent text-gray-500 hover:text-green-600"
         >
-          <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
+          <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
         </button>
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Sự kiện của tôi</h1>
+          <h1 className="text-xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-teal-600 tracking-tight">Sự kiện của tôi</h1>
           <p className="text-[11px] sm:text-sm text-gray-500 font-medium line-clamp-1">Quản lý và theo dõi lịch trình tham gia</p>
         </div>
       </div>
@@ -187,33 +191,34 @@ export const MyEvents = () => {
         animate={{ opacity: 1, y: 0 }}
         className="grid grid-cols-2 gap-3 sm:gap-4"
       >
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-[20px] p-3 sm:p-5 border border-emerald-100 shadow-sm flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-3xl p-4 sm:p-6 border border-green-100 shadow-sm flex flex-col justify-between group hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-2 sm:mb-0">
-            <p className="text-[10px] sm:text-xs text-gray-500 font-bold uppercase tracking-wider">Tổng sự kiện</p>
-            <div className="h-8 w-8 sm:h-12 sm:w-12 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm shrink-0">
-              <CalendarIcon className="h-4 w-4 sm:h-6 sm:w-6 text-emerald-600" />
+            <p className="text-[10px] sm:text-xs text-green-700 font-bold uppercase tracking-wider">Tổng sự kiện</p>
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm shrink-0 group-hover:scale-110 transition-transform">
+              <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" />
             </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-black text-gray-900 leading-none">{totalEvents}</p>
+          <p className="text-3xl sm:text-4xl font-black text-gray-800 leading-none">{totalEvents}</p>
         </div>
         
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-[20px] p-3 sm:p-5 border border-emerald-100 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2 sm:mb-0">
-            <p className="text-[10px] sm:text-xs text-gray-500 font-bold uppercase tracking-wider">Điểm Rèn luyện</p>
-            <div className="h-8 w-8 sm:h-12 sm:w-12 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm shrink-0">
-              <Award className="h-4 w-4 sm:h-6 sm:w-6 text-emerald-600" />
+        <div className="bg-gradient-to-br from-teal-500 to-green-500 rounded-3xl p-4 sm:p-6 shadow-md shadow-green-500/20 flex flex-col justify-between group hover:shadow-lg hover:shadow-green-500/30 transition-shadow relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 opacity-10"><CheckCircle2 className="w-24 h-24 text-white" /></div>
+          <div className="flex items-center justify-between mb-2 sm:mb-0 relative z-10">
+            <p className="text-[10px] sm:text-xs text-green-50 font-bold uppercase tracking-wider">Điểm Rèn luyện</p>
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm shrink-0 group-hover:scale-110 transition-transform">
+              <Award className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-black text-emerald-600 leading-none">{totalPoints}</p>
+          <p className="text-3xl sm:text-4xl font-black text-white leading-none relative z-10">{totalPoints}</p>
         </div>
       </motion.div>
 
       {/* View Toggle (List vs Calendar) */}
-      <div className="bg-gray-100 p-1.5 rounded-[18px] flex relative w-full sm:w-64">
+      <div className="bg-white p-1.5 rounded-2xl flex relative w-full sm:w-64 border border-green-100 shadow-sm">
         <button
           onClick={() => setViewMode('list')}
-          className={`flex-1 flex items-center justify-center space-x-2 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all z-10 ${
-            viewMode === 'list' ? 'text-emerald-700 shadow-sm bg-white' : 'text-gray-500'
+          className={`flex-1 flex items-center justify-center space-x-2 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all z-10 ${
+            viewMode === 'list' ? 'bg-green-50 text-green-700 shadow-sm border border-green-100' : 'text-gray-500 hover:bg-gray-50'
           }`}
         >
           <LayoutList className="h-4 w-4" />
@@ -221,8 +226,8 @@ export const MyEvents = () => {
         </button>
         <button
           onClick={() => setViewMode('calendar')}
-          className={`flex-1 flex items-center justify-center space-x-2 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all z-10 ${
-            viewMode === 'calendar' ? 'text-emerald-700 shadow-sm bg-white' : 'text-gray-500'
+          className={`flex-1 flex items-center justify-center space-x-2 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all z-10 ${
+            viewMode === 'calendar' ? 'bg-green-50 text-green-700 shadow-sm border border-green-100' : 'text-gray-500 hover:bg-gray-50'
           }`}
         >
           <CalendarIcon className="h-4 w-4" />
@@ -233,16 +238,16 @@ export const MyEvents = () => {
       {isLoading ? (
         <div className="space-y-4 pt-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-32 bg-gray-100 rounded-3xl animate-pulse border border-gray-200" />
+            <div key={i} className="h-32 bg-green-50/50 rounded-3xl animate-pulse border border-green-100" />
           ))}
         </div>
       ) : viewMode === 'calendar' ? (
         
         /* ================= CALENDAR VIEW ================= */
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-[24px] shadow-sm border border-gray-100 p-3 sm:p-6 h-[500px] sm:h-[600px] flex flex-col overflow-hidden"
+          className="bg-white rounded-[24px] shadow-sm border border-green-100 p-3 sm:p-6 h-[500px] sm:h-[600px] flex flex-col overflow-hidden"
         >
           <div className="flex-1 h-full w-full">
             <BigCalendar
@@ -250,7 +255,7 @@ export const MyEvents = () => {
               events={calendarEvents}
               startAccessor="start"
               endAccessor="end"
-              style={{ height: '100%' }}
+              style={{ height: '100%', fontFamily: 'inherit' }}
               date={calendarDate}
               onNavigate={(newDate) => setCalendarDate(newDate)}
               view={calendarView}
@@ -264,11 +269,14 @@ export const MyEvents = () => {
                 day: 'Ngày',
                 agenda: 'Lịch trình',
                 showMore: (total) => `+${total} nữa`,
-                noEventsInRange: 'Trống',
+                noEventsInRange: 'Không có sự kiện nào trong khoảng thời gian này.',
+                event: 'Sự kiện',
+                date: 'Ngày',
+                time: 'Thời gian'
               }}
               culture="vi"
               eventPropGetter={eventPropGetter}
-              views={['month', 'week', 'day', 'agenda']}
+              views={isMobile ? [Views.AGENDA] : [Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
               popup
             />
           </div>
@@ -281,22 +289,22 @@ export const MyEvents = () => {
           className="space-y-4 sm:space-y-5"
         >
           {/* Tab Navigation */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-100 mb-6">
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`flex-1 py-3 text-xs sm:text-sm font-bold text-center border-b-[3px] transition-colors ${
-                activeTab === 'upcoming' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              className={`flex-1 py-3 text-xs sm:text-sm font-bold text-center border-b-2 transition-colors ${
+                activeTab === 'upcoming' ? 'border-green-500 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              Sắp diễn ra <span className="ml-1 bg-gray-100 px-2 py-0.5 rounded-full text-[10px]">{upcomingEvents.length}</span>
+              Sắp diễn ra <span className={`ml-1 px-2 py-0.5 rounded-md text-[10px] ${activeTab === 'upcoming' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>{upcomingEvents.length}</span>
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className={`flex-1 py-3 text-xs sm:text-sm font-bold text-center border-b-[3px] transition-colors ${
-                activeTab === 'history' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              className={`flex-1 py-3 text-xs sm:text-sm font-bold text-center border-b-2 transition-colors ${
+                activeTab === 'history' ? 'border-green-500 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              Lịch sử <span className="ml-1 bg-gray-100 px-2 py-0.5 rounded-full text-[10px]">{pastEvents.length}</span>
+              Lịch sử tham gia <span className={`ml-1 px-2 py-0.5 rounded-md text-[10px] ${activeTab === 'history' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>{pastEvents.length}</span>
             </button>
           </div>
 
@@ -304,19 +312,21 @@ export const MyEvents = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="bg-white rounded-[24px] p-8 text-center border border-gray-100 shadow-sm mt-6"
+              className="bg-white rounded-3xl p-10 text-center border border-dashed border-green-200 shadow-sm mt-6"
             >
-              <div className="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="h-8 w-8 text-gray-300" />
+              <div className="h-20 w-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-100">
+                <CalendarIcon className="h-10 w-10 text-green-400" />
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">Chưa có dữ liệu</h3>
-              <p className="text-xs sm:text-sm text-gray-500 mb-6 px-4">
+              <h3 className="text-lg font-bold text-gray-800 mb-2">Chưa có dữ liệu</h3>
+              <p className="text-sm text-gray-500 mb-6 px-4 font-medium">
                 {activeTab === 'upcoming'
-                  ? 'Bạn chưa có sự kiện nào sắp tới. Hãy tìm kiếm sự kiện mới nhé!'
+                  ? 'Bạn chưa đăng ký sự kiện nào sắp tới. Hãy tìm kiếm sự kiện mới nhé!'
                   : 'Bạn chưa có lịch sử tham gia sự kiện nào.'}
               </p>
               <Link to="/events">
-                <Button className="rounded-xl px-6 bg-emerald-500 hover:bg-emerald-600 text-xs sm:text-sm">Khám phá sự kiện</Button>
+                <Button className="rounded-xl px-6 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 shadow-sm hover:shadow-md transition-all transform hover:-translate-y-0.5 border-none">
+                  Khám phá sự kiện ngay
+                </Button>
               </Link>
             </motion.div>
           ) : (
@@ -337,53 +347,52 @@ export const MyEvents = () => {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className={`bg-white rounded-2xl sm:rounded-3xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow relative ${!isUpcoming ? 'opacity-75' : ''}`}
+                    className={`bg-white rounded-2xl sm:rounded-3xl border border-green-100 overflow-hidden shadow-sm hover:shadow-md transition-all relative group ${!isUpcoming ? 'opacity-80' : ''}`}
                   >
                     {/* --- CẤU TRÚC VÉ (RESPONSIVE FLEXBOX) --- */}
                     <div className="flex flex-row relative min-h-[120px] sm:min-h-[140px]">
                       
                       {/* Trái - Thông tin sự kiện */}
-                      <div className="flex-1 p-3 sm:p-5 pr-4 sm:pr-6 flex flex-col justify-center">
-                        <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2 leading-snug">
+                      <div className="flex-1 p-4 sm:p-6 pr-5 sm:pr-8 flex flex-col justify-center">
+                        <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 line-clamp-2 leading-snug group-hover:text-green-700 transition-colors">
                           {event?.title}
                         </h3>
 
-                        <div className="space-y-1 sm:space-y-2">
-                          <div className="flex items-start text-[11px] sm:text-sm text-gray-600">
-                            <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 text-emerald-600 shrink-0 mt-[2px]" />
-                            <span className="font-medium line-clamp-1">
+                        <div className="space-y-2 sm:space-y-2.5">
+                          <div className="flex items-start text-xs sm:text-sm text-gray-600 font-medium">
+                            <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 text-teal-500 shrink-0 mt-[1px]" />
+                            <span className="line-clamp-1">
                               {format(eventDate, 'dd/MM/yyyy • HH:mm', { locale: vi })}
                             </span>
                           </div>
 
                           {event?.location && (
-                            <div className="flex items-start text-[11px] sm:text-sm text-gray-600">
-                              <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 text-red-500 shrink-0 mt-[2px]" />
-                              <span className="font-medium line-clamp-1">{event.location}</span>
+                            <div className="flex items-start text-xs sm:text-sm text-gray-600 font-medium">
+                              <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 text-green-500 shrink-0 mt-[1px]" />
+                              <span className="line-clamp-1">{event.location}</span>
                             </div>
                           )}
 
                           {points > 0 && (
-                            <div className="flex items-center text-[10px] sm:text-xs text-emerald-700 bg-emerald-50 w-fit px-2 py-0.5 rounded mt-1 border border-emerald-100">
-                              <Award className="h-3 w-3 mr-1" />
-                              <span className="font-bold">+{points} ĐRL</span>
+                            <div className="flex items-center text-[10px] sm:text-xs text-green-700 bg-green-50 w-fit px-2.5 py-1 rounded-md mt-1 border border-green-100 font-bold">
+                              <Award className="h-3.5 w-3.5 mr-1" />
+                              +{points} ĐRL
                             </div>
                           )}
                         </div>
                       </div>
 
                       {/* Phải - Hành động & Nét đứt (Tear Line) */}
-                      {/* Gắn viền đứt vào cột phải để dễ canh vị trí lỗ cắt */}
-                      <div className="w-[85px] sm:w-[130px] p-2 sm:p-4 bg-gray-50/50 flex flex-col items-center justify-center space-y-2 sm:space-y-3 shrink-0 border-l-2 border-dashed border-gray-200 relative">
+                      <div className="w-[90px] sm:w-[140px] p-3 sm:p-5 bg-gradient-to-b from-green-50/50 to-teal-50/50 flex flex-col items-center justify-center space-y-3 sm:space-y-4 shrink-0 border-l-2 border-dashed border-green-200 relative">
                         
                         {/* 2 Lỗ tròn cắt vé */}
-                        <div className="absolute -top-[13px] -left-[13px] w-6 h-6 bg-gray-50 sm:bg-white rounded-full border-b border-gray-200"></div>
-                        <div className="absolute -bottom-[13px] -left-[13px] w-6 h-6 bg-gray-50 sm:bg-white rounded-full border-t border-gray-200"></div>
+                        <div className="absolute -top-[14px] -left-[14px] w-7 h-7 bg-white rounded-full border-b border-green-100"></div>
+                        <div className="absolute -bottom-[14px] -left-[14px] w-7 h-7 bg-white rounded-full border-t border-green-100"></div>
 
                         {event && (
                           <Badge
                             variant={statusBadge.variant}
-                            className={`px-1 sm:px-3 text-[9px] sm:text-xs font-bold text-center w-full justify-center ${statusBadge.className}`}
+                            className={`px-2 sm:px-3 py-1 text-[9px] sm:text-xs font-bold text-center w-full justify-center ${statusBadge.className}`}
                           >
                             {statusBadge.label}
                           </Badge>
@@ -393,16 +402,16 @@ export const MyEvents = () => {
                           <Button
                             size="sm"
                             onClick={() => setSelectedQr(getQrValue(reg))}
-                            className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-600 shadow-sm h-8 sm:h-9 px-0 flex items-center justify-center"
+                            className="w-full rounded-xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white shadow-sm h-8 sm:h-10 px-0 flex items-center justify-center transition-transform hover:scale-105 border-none"
                           >
                             <QrCode className="h-4 w-4 sm:mr-1.5" />
-                            <span className="hidden sm:inline text-xs">Mã QR</span>
+                            <span className="hidden sm:inline text-xs font-bold">Mã QR</span>
                           </Button>
                         )}
 
                         {event && (
                           <Link to={`/events/${event.id}`} className="w-full">
-                            <Button variant="ghost" size="sm" className="w-full h-8 sm:h-9 rounded-xl text-emerald-600 font-bold text-[10px] sm:text-xs bg-white border border-emerald-100 hover:bg-emerald-50 px-0">
+                            <Button variant="ghost" size="sm" className="w-full h-8 sm:h-10 rounded-xl text-teal-700 font-bold text-[10px] sm:text-xs bg-white border border-teal-100 hover:bg-teal-50 px-0 transition-colors shadow-sm">
                               Chi tiết
                             </Button>
                           </Link>
@@ -424,7 +433,7 @@ export const MyEvents = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
             onClick={() => setSelectedQr(null)}
           >
             <motion.div
@@ -432,36 +441,37 @@ export const MyEvents = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', damping: 25 }}
-              className="bg-white rounded-[28px] p-5 sm:p-8 max-w-[320px] sm:max-w-sm w-full relative shadow-2xl"
+              className="bg-white rounded-[32px] p-6 sm:p-8 max-w-[340px] sm:max-w-sm w-full relative shadow-2xl border border-white"
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 onClick={() => setSelectedQr(null)}
-                className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                className="absolute top-4 right-4 p-2 bg-gray-100 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"
               >
-                <X className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+                <X className="h-5 w-5 text-gray-500" />
               </button>
 
-              <div className="text-center mb-5 mt-2">
-                <h2 className="text-xl sm:text-2xl font-black text-gray-900">Mã Điểm Danh</h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">Sử dụng mã này tại quầy check-in</p>
+              <div className="text-center mb-6 mt-2">
+                <h2 className="text-xl sm:text-2xl font-black text-gray-800">Mã Điểm Danh</h2>
+                <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">Đưa mã này cho BTC quét tại quầy</p>
               </div>
 
-              <div className="flex justify-center mb-5">
-                <div className="p-3 sm:p-4 bg-white rounded-2xl sm:rounded-3xl shadow-[0_0_30px_rgba(0,0,0,0.08)] border border-gray-100">
-                  <QRCodeSVG value={selectedQr} size={200} className="w-full max-w-[200px] h-auto" />
+              <div className="flex justify-center mb-6">
+                <div className="p-4 sm:p-5 bg-white rounded-[24px] shadow-[0_0_40px_rgba(16,185,129,0.15)] border-2 border-green-100">
+                  <QRCodeSVG value={selectedQr} size={220} className="w-full max-w-[220px] h-auto" />
                 </div>
               </div>
 
-              <div className="bg-amber-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-5 border border-amber-100">
-                <p className="text-center text-[11px] sm:text-sm font-semibold text-amber-700 leading-snug">
-                  Vui lòng tăng độ sáng màn hình để Ban tổ chức quét mã dễ dàng hơn.
+              <div className="bg-orange-50 rounded-2xl p-4 mb-6 border border-orange-100 flex gap-3 items-start">
+                <div className="p-1 bg-orange-100 rounded-lg shrink-0 mt-0.5"><Clock className="w-4 h-4 text-orange-600"/></div>
+                <p className="text-left text-[11px] sm:text-xs font-semibold text-orange-800 leading-snug">
+                  Hãy tăng độ sáng màn hình lên mức tối đa để việc quét mã QR diễn ra nhanh chóng.
                 </p>
               </div>
 
               <Button
                 onClick={() => setSelectedQr(null)}
-                className="w-full rounded-xl sm:rounded-2xl bg-gray-900 hover:bg-gray-800 text-white py-3 sm:py-4 font-bold text-sm sm:text-base"
+                className="w-full rounded-2xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white py-3.5 sm:py-4 font-bold text-sm sm:text-base shadow-sm border-none"
               >
                 Đóng
               </Button>

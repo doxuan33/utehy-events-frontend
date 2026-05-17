@@ -28,7 +28,6 @@ import { CategoryManagement } from './pages/admin/CategoryManagement';
 import { EventApproval } from './pages/admin/EventApproval';
 import { StudentManagement } from './pages/admin/StudentManagement';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
-// import { SystemDashboard } from './pages/admin/SystemDashboard';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToasterSetup } from './components/ui/ToasterSetup';
 

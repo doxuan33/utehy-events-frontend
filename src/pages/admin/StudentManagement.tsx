@@ -288,19 +288,19 @@ const readExcelFile = (file: File): Promise<any[]> => {
     }
   };
 
-  const handleViewDetails = async (student: any) => {
-    try {
-      setIsActionLoading(true);
-      const res = await usersApi.getStudentDetail(student.id);
-      setSelectedStudent(res.data.data);
-      setIsDetailModalOpen(true);
-    } catch (err) {
-      console.error('Failed to fetch student details', err);
-      toast.error('Không thể tải thông tin chi tiết');
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
+   const handleViewDetails = async (student: any) => {
+     try {
+       setIsActionLoading(true);
+       const res = await usersApi.getById(student.id);
+       setSelectedStudent(res.data.data);
+       setIsDetailModalOpen(true);
+     } catch (err) {
+       console.error('Failed to fetch student details', err);
+       toast.error('Không thể tải thông tin chi tiết');
+     } finally {
+       setIsActionLoading(false);
+     }
+   };
 
   // Nhóm học sinh theo lớp
   const groupedByClass = filteredStudents.reduce((acc: Record<string, any[]>, student: any) => {
@@ -353,15 +353,16 @@ const readExcelFile = (file: File): Promise<any[]> => {
             <span>Tải file mẫu tại đây</span>
           </button>
           
-          <Button 
-            variant="outline"
-            onClick={async () => {
-              try {
-                const { adminApi } = await import('@/api/admin.api');
-                const res = await adminApi.getTrainingPointsReport({ limit: 1000 });
-                const studentsData = res.data.data?.data || res.data.data || [];
-                if (studentsData.length === 0) return alert('Không có dữ liệu');
-                const exportData = studentsData.map((s: any) => ({
+           <Button 
+             variant="outline"
+             onClick={async () => {
+               try {
+                 const { adminApi } = await import('@/api/admin.api');
+                 const res = await adminApi.getTrainingPointsReport({ semester: undefined });
+                 const studentsData = res.data.data?.data || res.data.data || [];
+                 if (studentsData.length === 0) return alert('Không có dữ liệu');
+                 const exportData = studentsData.map((s: any) => ({
+
                   'MSSV': s.profile?.student_id || 'N/A',
                   'Họ và tên': s.profile?.full_name || 'N/A',
                   'Lớp': s.profile?.class_name || 'N/A',

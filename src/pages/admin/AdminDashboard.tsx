@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -45,7 +46,7 @@ const MOCK_TREND_DATA = [
 //  Skeleton placeholder
 // =====================================================================
 const SkeletonBlock = ({ className }: { className?: string }) => (
-  <div className={`animate-pulse rounded-2xl bg-gray-200 ${className}`} />
+  <div className={`animate-pulse rounded-2xl bg-green-100/50 ${className}`} />
 );
 
 // =====================================================================
@@ -94,11 +95,12 @@ const StatCard = ({
   trend?: string;
   index: number;
 }) => {
+  // Thay đổi màu sắc sang dải màu xanh/teal để đồng bộ theme
   const colorMap = {
-    blue: { bg: 'bg-blue-50', text: 'text-blue-600' },
-    purple: { bg: 'bg-purple-50', text: 'text-purple-600' },
+    blue: { bg: 'bg-teal-50', text: 'text-teal-600' },
+    purple: { bg: 'bg-green-50', text: 'text-green-600' },
     emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
-    orange: { bg: 'bg-orange-50', text: 'text-orange-600' },
+    orange: { bg: 'bg-orange-50', text: 'text-orange-600' }, // Giữ cam/đỏ cho cảnh báo
     red: { bg: 'bg-red-50', text: 'text-red-600' },
   };
   const c = colorMap[color];
@@ -108,13 +110,13 @@ const StatCard = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08, duration: 0.5, ease: 'easeOut' }}
-      className={`relative bg-white rounded-3xl border border-gray-100 shadow-sm p-6
-        hover:shadow-lg transition-all duration-300 group overflow-hidden`}
+      className={`relative bg-white rounded-2xl border border-green-100 shadow-sm p-6
+        hover:shadow-md transition-all duration-300 group overflow-hidden`}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent to-transparent group-hover:from-current/5 transition-all duration-500" />
+      <div className="absolute inset-0 bg-gradient-to-br from-transparent to-transparent group-hover:from-green-50/50 transition-all duration-500" />
 
       <div className="relative flex items-start justify-between">
-        <div className={`h-12 w-12 rounded-2xl ${c.bg} flex items-center justify-center
+        <div className={`h-12 w-12 rounded-xl ${c.bg} flex items-center justify-center
           group-hover:scale-110 transition-transform duration-300`}>
           <Icon className={`h-6 w-6 ${c.text}`} />
         </div>
@@ -127,7 +129,7 @@ const StatCard = ({
             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold
               ${color === 'orange' || color === 'red'
                 ? 'bg-orange-50 text-orange-600'
-                : 'bg-emerald-50 text-emerald-600'}`}
+                : 'bg-green-50 text-green-700'}`}
           >
             <ArrowUpRight className="h-3 w-3" />
             {trend}
@@ -141,7 +143,7 @@ const StatCard = ({
         transition={{ delay: index * 0.08 + 0.2 }}
         className="mt-4"
       >
-        <p className="text-3xl font-black text-gray-900 tracking-tight">
+        <p className="text-3xl font-black text-gray-800 tracking-tight">
           <AnimatedCounter target={value} />
         </p>
         <p className={`text-xs font-bold mt-1 uppercase tracking-wider ${c.text}`}>
@@ -167,9 +169,9 @@ const PendingEventCard = ({
   index: number;
 }) => {
   const priorityMap = {
-    high: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200', dot: 'bg-red-500' },
-    medium: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', dot: 'bg-amber-500' },
-    low: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500' },
+    high: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100', dot: 'bg-red-500' },
+    medium: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-100', dot: 'bg-orange-500' },
+    low: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-100', dot: 'bg-green-500' },
   };
   const pc = priorityMap[event.priority];
 
@@ -178,17 +180,17 @@ const PendingEventCard = ({
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.06, duration: 0.4 }}
-      className={`flex items-center space-x-3 p-4 rounded-2xl border ${pc.border} ${pc.bg}
-        hover:shadow-sm transition-all cursor-pointer group`}
+      className={`flex items-center space-x-3 p-4 rounded-xl border ${pc.border} bg-white hover:bg-green-50/50
+        shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer group`}
     >
       <div className={`h-2 w-2 rounded-full shrink-0 ${pc.dot} group-hover:animate-pulse`} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-900 truncate">{event.title}</p>
+        <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-green-700 transition-colors">{event.title}</p>
         <p className="text-[10px] text-gray-500 font-medium mt-0.5">
           {event.page_name || 'Chưa xác định'}
         </p>
       </div>
-      <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 transition-colors shrink-0" />
+      <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-green-600 transition-colors shrink-0" />
     </motion.div>
   );
 };
@@ -197,11 +199,11 @@ const PendingEventCard = ({
 //  Activity Item
 // =====================================================================
 const ACTIVITY_COLORS: Record<string, string> = {
-  blue: 'bg-blue-500',
+  blue: 'bg-teal-500',
   emerald: 'bg-emerald-500',
-  amber: 'bg-amber-500',
+  amber: 'bg-orange-500',
   green: 'bg-green-500',
-  purple: 'bg-purple-500',
+  purple: 'bg-green-600',
   red: 'bg-red-500',
 };
 
@@ -225,20 +227,20 @@ const ActivityItem = ({
   const Icon = activity.icon;
 
   return (
-    <div className="relative flex items-start gap-3 pb-2">
-      {!isLast && <div className="absolute left-3.5 top-8 bottom-0 w-0.5 bg-gray-100" />}
+    <div className="relative flex items-start gap-3 pb-4 hover:bg-green-50/30 p-2 rounded-lg transition-colors">
+      {!isLast && <div className="absolute left-5 top-10 bottom-0 w-0.5 bg-green-100" />}
 
-      <div className={`relative z-10 h-7 w-7 rounded-full flex items-center justify-center shrink-0
-        ${ACTIVITY_COLORS[activity.color] || ACTIVITY_COLORS.blue}`}
+      <div className={`relative z-10 h-8 w-8 rounded-full flex items-center justify-center shrink-0 shadow-sm
+        ${ACTIVITY_COLORS[activity.color] || ACTIVITY_COLORS.green}`}
       >
-        <Icon className="h-3.5 w-3.5 text-white" />
+        <Icon className="h-4 w-4 text-white" />
       </div>
 
-      <div className="flex-1 pt-0.5 pb-2">
-        <p className="text-sm font-semibold text-gray-900">{activity.action}</p>
-        <p className="text-xs text-gray-500 mt-0.5">{activity.detail}</p>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-[10px] text-gray-400 font-medium">{activity.actor}</span>
+      <div className="flex-1 pt-1">
+        <p className="text-sm font-semibold text-gray-800">{activity.action}</p>
+        <p className="text-xs text-gray-600 mt-1">{activity.detail}</p>
+        <div className="flex items-center gap-2 mt-1.5">
+          <span className="text-[10px] text-green-700 bg-green-50 px-2 py-0.5 rounded font-medium">{activity.actor}</span>
           <span className="text-[10px] text-gray-300">·</span>
           <span className="text-[10px] text-gray-400">{activity.time}</span>
         </div>
@@ -390,19 +392,19 @@ export const AdminDashboard = () => {
         label: 'Tổng sinh viên',
         value: stats?.total_users ?? 0,
         icon: Users,
-        color: 'blue' as const,
+        color: 'blue' as const, // Rendered as Teal via colorMap
       },
       {
         label: 'Câu lạc bộ',
         value: stats?.total_clubs ?? 0,
         icon: Flag,
-        color: 'purple' as const,
+        color: 'purple' as const, // Rendered as Green via colorMap
       },
       {
         label: 'Sự kiện đã duyệt',
         value: stats?.approved_events ?? 0,
         icon: CalendarCheck,
-        color: 'emerald' as const,
+        color: 'emerald' as const, // Rendered as Emerald via colorMap
       },
       {
         label: 'Chờ phê duyệt',
@@ -449,15 +451,15 @@ export const AdminDashboard = () => {
           },
         },
       }}
-      className="space-y-8 pb-12"
+      className="space-y-8 pb-12 bg-gradient-to-br from-green-50 via-white to-green-50 min-h-screen p-4 md:p-8 rounded-2xl"
     >
        {/* ===================== PAGE HEADER ===================== */}
        <motion.div
          variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
-         className="flex flex-col md:flex-row md:items-center justify-between gap-4"
+         className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-green-100 shadow-sm"
        >
          <div>
-           <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
+           <h1 className="text-2xl md:text-3xl font-black text-green-800 tracking-tight">
              Bảng điều khiển quản trị
            </h1>
            <p className="text-gray-500 font-medium mt-1">
@@ -466,8 +468,8 @@ export const AdminDashboard = () => {
          </div>
          <div className="flex gap-3">
            <Button
-             className="rounded-2xl px-6 py-3 shadow-lg shadow-emerald-100 bg-emerald-500 hover:bg-emerald-600
-               text-white font-semibold transition-all duration-300"
+             className="rounded-lg px-6 py-2.5 shadow-sm bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600
+               text-white font-medium transition-all duration-300 transform hover:-translate-y-0.5"
              onClick={handleExportExcel}
              disabled={isExporting}
            >
@@ -481,8 +483,8 @@ export const AdminDashboard = () => {
              )}
            </Button>
            <Link to="/admin/events">
-             <Button className="rounded-2xl px-6 py-3 shadow-sm bg-blue-600 hover:bg-blue-700
-               text-white font-semibold transition-all duration-300">
+             <Button className="rounded-lg px-6 py-2.5 shadow-sm bg-green-50 hover:bg-green-100 border border-green-500
+               text-green-700 font-medium transition-all duration-300 transform hover:-translate-y-0.5">
                <FileText className="h-5 w-5 mr-2" />
                Quản lý sự kiện
              </Button>
@@ -495,8 +497,8 @@ export const AdminDashboard = () => {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-                <SkeletonBlock className="h-12 w-12 rounded-2xl mb-4" />
+              <div key={i} className="bg-white rounded-2xl border border-green-100 shadow-sm p-6">
+                <SkeletonBlock className="h-12 w-12 rounded-xl mb-4" />
                 <SkeletonBlock className="h-4 w-24 mb-3" />
                 <SkeletonBlock className="h-8 w-28" />
               </div>
@@ -531,13 +533,13 @@ export const AdminDashboard = () => {
         >
           {/* ── Registration Trend Chart ── */}
           <section aria-label="Biểu đồ xu hướng">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+            <div className="bg-white rounded-2xl border border-green-100 shadow-sm p-6 sm:p-8 hover:shadow-md transition-shadow duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <div>
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-800">
                     Xu hướng tham gia
                   </h3>
-                  <p className="text-[11px] sm:text-xs text-gray-400 mt-1">
+                  <p className="text-[11px] sm:text-xs text-gray-500 mt-1">
                     Số lượng đăng ký trong 7 ngày gần nhất
                   </p>
                 </div>
@@ -545,8 +547,8 @@ export const AdminDashboard = () => {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.5 }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600
-                    rounded-lg text-[10px] font-bold"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700
+                    rounded-lg text-[10px] font-bold border border-green-100"
                 >
                   <TrendingUp className="h-3 w-3" />
                   +18% so với tuần trước
@@ -564,8 +566,8 @@ export const AdminDashboard = () => {
                       <BarChart data={chartData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
                         <defs>
                           <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#2563eb" stopOpacity={0.9} />
-                            <stop offset="100%" stopColor="#2563eb" stopOpacity={0.3} />
+                            <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} /> {/* emerald-500 */}
+                            <stop offset="100%" stopColor="#14b8a6" stopOpacity={0.3} /> {/* teal-500 */}
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -573,22 +575,23 @@ export const AdminDashboard = () => {
                           dataKey="day"
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }}
+                          tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
                           dy={8}
                         />
                         <YAxis
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }}
+                          tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
                           width={32}
                         />
                         <Tooltip
                           contentStyle={{
                             borderRadius: '12px',
-                            border: 'none',
-                            boxShadow: '0 8px 24px -4px rgba(0,0,0,0.12)',
+                            border: '1px solid #d1fae5',
+                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
                             fontSize: 12,
                           }}
+                          cursor={{ fill: '#ecfdf5' }}
                         />
                         <Bar
                           dataKey="registrations"
@@ -599,8 +602,8 @@ export const AdminDashboard = () => {
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-full w-full flex items-center justify-center bg-gray-50 rounded-2xl
-                      border border-dashed border-gray-200 text-gray-400 text-sm italic">
+                    <div className="h-full w-full flex items-center justify-center bg-green-50/50 rounded-2xl
+                      border border-dashed border-green-200 text-gray-500 text-sm italic">
                       Không có dữ liệu biểu đồ
                     </div>
                   )}
@@ -611,8 +614,8 @@ export const AdminDashboard = () => {
 
           {/* ── Category Distribution ── */}
           <section aria-label="Phân loại sự kiện">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
-              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-6">
+            <div className="bg-white rounded-2xl border border-green-100 shadow-sm p-6 sm:p-8 hover:shadow-md transition-shadow duration-300">
+              <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-6">
                 Phân loại sự kiện
               </h3>
               {isLoading ? (
@@ -624,35 +627,35 @@ export const AdminDashboard = () => {
                   <div className="h-[180px] flex items-center justify-center">
                     <div className="relative h-40 w-40">
                       <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
-                        <circle cx="80" cy="80" r="60" fill="none" stroke="#f1f5f9" strokeWidth="24" />
-                        <circle cx="80" cy="80" r="60" fill="none" stroke="#2563eb" strokeWidth="24"
-                          strokeDasharray="150.8 227.4" strokeLinecap="round" />
-                        <circle cx="80" cy="80" r="60" fill="none" stroke="#7c3aed" strokeWidth="24"
-                          strokeDasharray="94.2 283" strokeLinecap="round" offset="150.8" />
+                        <circle cx="80" cy="80" r="60" fill="none" stroke="#ecfdf5" strokeWidth="24" />
                         <circle cx="80" cy="80" r="60" fill="none" stroke="#10b981" strokeWidth="24"
+                          strokeDasharray="150.8 227.4" strokeLinecap="round" />
+                        <circle cx="80" cy="80" r="60" fill="none" stroke="#14b8a6" strokeWidth="24"
+                          strokeDasharray="94.2 283" strokeLinecap="round" offset="150.8" />
+                        <circle cx="80" cy="80" r="60" fill="none" stroke="#34d399" strokeWidth="24"
                           strokeDasharray="75.4 302" strokeLinecap="round" offset="245" />
-                        <circle cx="80" cy="80" r="60" fill="none" stroke="#f59e0b" strokeWidth="24"
+                        <circle cx="80" cy="80" r="60" fill="none" stroke="#059669" strokeWidth="24"
                           strokeDasharray="37.7 339.7" strokeLinecap="round" offset="320.4" />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-2xl font-black text-gray-900">4</span>
+                        <span className="text-2xl font-black text-green-800">4</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {[
-                      { name: 'Học thuật', count: 12, color: 'bg-blue-500' },
-                      { name: 'Thể thao', count: 8, color: 'bg-purple-500' },
-                      { name: 'Tình nguyện', count: 15, color: 'bg-emerald-500' },
-                      { name: 'Văn hóa - Nghệ thuật', count: 5, color: 'bg-amber-500' },
+                      { name: 'Học thuật', count: 12, color: 'bg-emerald-500' },
+                      { name: 'Thể thao', count: 8, color: 'bg-teal-500' },
+                      { name: 'Tình nguyện', count: 15, color: 'bg-green-400' },
+                      { name: 'Văn hóa - Nghệ thuật', count: 5, color: 'bg-green-700' },
                     ].map((cat, i) => (
-                      <div key={cat.name} className="flex items-center justify-between">
+                      <div key={cat.name} className="flex items-center justify-between p-2 rounded-lg hover:bg-green-50 transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className={`h-2.5 w-2.5 rounded-full ${cat.color}`} />
+                          <div className={`h-3 w-3 rounded-full ${cat.color} shadow-sm`} />
                           <span className="text-sm font-medium text-gray-700">{cat.name}</span>
                         </div>
-                        <span className="text-sm font-bold text-gray-900">{cat.count} sự kiện</span>
+                        <span className="text-sm font-bold text-gray-800">{cat.count} sự kiện</span>
                       </div>
                     ))}
                   </div>
@@ -663,8 +666,8 @@ export const AdminDashboard = () => {
 
           {/* ── Participation by Faculty ── */}
           <section aria-label="Chỉ số tham gia">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
-              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-6">
+            <div className="bg-white rounded-2xl border border-green-100 shadow-sm p-6 sm:p-8 hover:shadow-md transition-shadow duration-300">
+              <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-6">
                 Tỷ lệ tham gia theo khoa
               </h3>
               {isLoading ? (
@@ -677,19 +680,19 @@ export const AdminDashboard = () => {
                   ))}
                 </div>
               ) : (
-                <div className="space-y-5">
+                <div className="space-y-6">
                   {[
-                    { name: 'Công nghệ Thông tin', value: 92, color: 'bg-blue-500' },
-                    { name: 'Kinh tế', value: 78, color: 'bg-emerald-500' },
-                    { name: 'Ngoại ngữ', value: 65, color: 'bg-purple-500' },
-                    { name: 'Cơ điện', value: 54, color: 'bg-amber-500' },
+                    { name: 'Công nghệ Thông tin', value: 92, color: 'bg-emerald-500' },
+                    { name: 'Kinh tế', value: 78, color: 'bg-teal-500' },
+                    { name: 'Ngoại ngữ', value: 65, color: 'bg-green-400' },
+                    { name: 'Cơ điện', value: 54, color: 'bg-emerald-600' },
                   ].map((item) => (
-                    <div key={item.name}>
-                      <div className="flex justify-between mb-1.5">
-                        <span className="text-sm font-medium text-gray-700">{item.name}</span>
-                        <span className="text-sm font-black text-gray-900">{item.value}%</span>
+                    <div key={item.name} className="group">
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700 group-hover:text-green-700 transition-colors">{item.name}</span>
+                        <span className="text-sm font-black text-green-800">{item.value}%</span>
                       </div>
-                      <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-2.5 w-full bg-green-50 rounded-full overflow-hidden border border-green-100">
                         <motion.div
                           initial={{ width: 0 }}
                           whileInView={{ width: `${item.value}%` }}
@@ -714,35 +717,37 @@ export const AdminDashboard = () => {
         >
           {/* ── CTA: Needs Approval ── */}
           <section aria-label="Cần xử lý ngay">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600
-              p-6 sm:p-8 shadow-xl shadow-orange-200/40">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-600 to-teal-700
+              p-6 sm:p-8 shadow-md">
               <div className="absolute -top-4 -right-4 h-24 w-24 rounded-full bg-white opacity-10" />
               <div className="absolute -bottom-6 -left-6 h-20 w-20 rounded-full bg-white opacity-5" />
 
               <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-2">
-                  <AlertCircle className="h-6 w-6 text-white/90" />
-                  <span className="text-white/80 text-sm font-bold uppercase tracking-wider">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <AlertCircle className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="text-green-50 text-sm font-bold uppercase tracking-wider">
                     Cần xử lý ngay
                   </span>
                 </div>
                 {isLoading ? (
-                  <SkeletonBlock className="h-8 w-32 mb-3" />
+                  <SkeletonBlock className="h-8 w-32 mb-3 bg-white/20" />
                 ) : (
-                  <h3 className="text-white text-xl sm:text-2xl font-black mb-2">
+                  <h3 className="text-white text-2xl sm:text-3xl font-black mb-2">
                     {stats?.pending_events ?? 0} sự kiện
                   </h3>
                 )}
                 {!isLoading && (
-                  <p className="text-orange-100 text-sm leading-relaxed mb-6">
-                    Có {stats?.pending_events ?? 0} sự kiện đang chờ phê duyệt. Xử lý ngay để đảm bảo tiến độ.
+                  <p className="text-green-100 text-sm leading-relaxed mb-6">
+                    Có {stats?.pending_events ?? 0} sự kiện đang chờ phê duyệt. Xem xét để các hoạt động được diễn ra đúng hạn.
                   </p>
                 )}
                 <Link to="/admin/events">
-                  <Button className="w-full bg-white text-orange-600 hover:bg-orange-50 rounded-2xl
-                    py-3.5 font-bold shadow-lg shadow-black/10 transition-all duration-300">
+                  <Button className="w-full bg-white text-green-700 hover:bg-green-50 rounded-lg
+                    py-3 font-medium shadow-sm transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center">
                     Xem và duyệt sự kiện
-                    <ChevronRight className="h-5 w-5 ml-2" />
+                    <ChevronRight className="h-4 w-4 ml-2" />
                   </Button>
                 </Link>
               </div>
@@ -751,13 +756,13 @@ export const AdminDashboard = () => {
 
           {/* ── Pending Events List ── */}
           <section aria-label="Danh sách sự kiện cần duyệt">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
+            <div className="bg-white rounded-2xl border border-green-100 shadow-sm p-6 sm:p-8 hover:shadow-md transition-shadow duration-300">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                <h3 className="text-base sm:text-lg font-bold text-gray-800">
                   Sự kiện chờ duyệt
                 </h3>
                 <Link to="/admin/events">
-                  <Button variant="ghost" size="sm" className="text-blue-600 font-medium">
+                  <Button variant="ghost" size="sm" className="text-green-600 hover:bg-green-50 font-medium rounded-lg px-3 py-1.5 transition-colors">
                     Xem tất cả
                     <ArrowUpRight className="h-4 w-4 ml-1" />
                   </Button>
@@ -767,7 +772,7 @@ export const AdminDashboard = () => {
               {isLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center space-x-3 p-4 rounded-2xl border border-gray-100">
+                    <div key={i} className="flex items-center space-x-3 p-4 rounded-xl border border-green-50">
                       <SkeletonBlock className="h-7 w-7 rounded-full shrink-0" />
                       <div className="flex-1 space-y-2">
                         <SkeletonBlock className="h-4 w-3/4" />
@@ -783,8 +788,8 @@ export const AdminDashboard = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 bg-gray-50 rounded-xl">
-                  <CalendarCheck className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                <div className="text-center py-8 bg-green-50/50 rounded-xl border border-dashed border-green-200">
+                  <CalendarCheck className="h-10 w-10 text-green-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500 font-medium">
                     Không có sự kiện nào đang chờ duyệt
                   </p>
@@ -795,12 +800,14 @@ export const AdminDashboard = () => {
 
           {/* ── Recent Activity Feed ── */}
           <section aria-label="Hoạt động gần đây">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base sm:text-lg font-bold text-gray-900">
+            <div className="bg-white rounded-2xl border border-green-100 shadow-sm p-6 sm:p-8 hover:shadow-md transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-base sm:text-lg font-bold text-gray-800">
                   Hoạt động gần đây
                 </h3>
-                <BarChart3 className="h-5 w-5 text-gray-400" />
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <BarChart3 className="h-4 w-4 text-green-600" />
+                </div>
               </div>
 
               {isLoading ? (
@@ -816,7 +823,7 @@ export const AdminDashboard = () => {
                   ))}
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-green-50">
                   {recentActivity.map((activity, i) => (
                     <ActivityItem
                       key={activity.id}
@@ -830,11 +837,11 @@ export const AdminDashboard = () => {
             </div>
           </section>
 
-          {/* ── Quick System Summary (dark card) ── */}
+          {/* ── Quick System Summary (dark card - adjusted to green theme) ── */}
           <section aria-label="Thông tin nhanh">
-            <div className="bg-gray-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg">
+            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 sm:p-8 text-white shadow-md border border-gray-700">
               <h3 className="text-base sm:text-lg font-bold mb-6 flex items-center gap-2">
-                <FileText className="h-5 w-5" />
+                <FileText className="h-5 w-5 text-green-400" />
                 Tóm tắt hệ thống
               </h3>
 
@@ -842,35 +849,35 @@ export const AdminDashboard = () => {
                 <div className="space-y-4">
                   {Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="flex justify-between items-center">
-                      <SkeletonBlock className="h-4 w-20" />
-                      <SkeletonBlock className="h-4 w-12" />
+                      <SkeletonBlock className="h-4 w-20 bg-gray-700" />
+                      <SkeletonBlock className="h-4 w-12 bg-gray-700" />
                     </div>
                   ))}
                 </div>
               ) : (
                 <>
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center p-2 hover:bg-gray-700/50 rounded-lg transition-colors">
                       <span className="text-sm text-gray-300">Tổng người dùng</span>
-                      <span className="text-sm font-bold">
+                      <span className="text-sm font-bold text-white">
                         {(stats?.total_users ?? 0).toLocaleString()}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center p-2 hover:bg-gray-700/50 rounded-lg transition-colors">
                       <span className="text-sm text-gray-300">Fanpage hoạt động</span>
-                      <span className="text-sm font-bold">
+                      <span className="text-sm font-bold text-white">
                         {stats?.total_clubs ?? 0}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center p-2 hover:bg-gray-700/50 rounded-lg transition-colors">
                       <span className="text-sm text-gray-300">Sự kiện đã duyệt</span>
-                      <span className="text-sm font-bold">
+                      <span className="text-sm font-bold text-white">
                         {stats?.approved_events ?? 0}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center p-2 hover:bg-gray-700/50 rounded-lg transition-colors bg-green-900/20">
                       <span className="text-sm text-gray-300">Tỷ lệ duyệt</span>
-                      <span className="text-sm font-bold text-emerald-400">
+                      <span className="text-sm font-bold text-green-400">
                         {stats?.approved_events != null && stats?.total_users != null
                           ? stats.total_users > 0
                             ? `${Math.round((stats.approved_events / (stats.total_users / 10) || 0) * 100)}%`
@@ -882,11 +889,11 @@ export const AdminDashboard = () => {
 
                   <div className="mt-6 pt-6 border-t border-gray-700">
                     <Link to="/admin/events">
-                      <Button className="w-full bg-white/10 hover:bg-white/20 text-white
-                        border border-white/20 rounded-2xl py-3 font-semibold
-                        transition-all duration-300">
+                      <Button className="w-full bg-gray-800 hover:bg-gray-700 text-green-400
+                        border border-green-500/30 rounded-lg py-2.5 font-medium
+                        transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center">
                         Xem chi tiết báo cáo
-                        <ArrowUpRight className="h-4 w-4 ml-1" />
+                        <ArrowUpRight className="h-4 w-4 ml-2" />
                       </Button>
                     </Link>
                   </div>

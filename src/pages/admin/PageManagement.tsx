@@ -18,7 +18,8 @@ import {
   X,
   Globe,
   Mail,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -106,88 +107,97 @@ export const PageManagement = () => {
   };
 
   const handleCreateAdminAccount = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    setIsSubmitting(true);
-    
-    // 1. Tạo tài khoản (LƯU Ý: Phải nhập một email hoàn toàn mới trên form)
-    const res = await authApi.register({
-      ...accountData,
-      student_id: `ADMIN_${Date.now()}` // Tránh lỗi bắt buộc nhập mã SV
-    });
-    
-    console.log(">>> 1. KẾT QUẢ TẠO TÀI KHOẢN:", res.data);
+    e.preventDefault();
+    try {
+      setIsSubmitting(true);
+      
+      // 1. Tạo tài khoản
+      const res = await authApi.register({
+        ...accountData,
+        student_id: `ADMIN_${Date.now()}`
+      });
+      
+      const responseData = res.data?.data;
+      const userId = responseData?.user?.id || responseData?.id;
+      
+      if (!userId) {
+        toast.error("Tạo tài khoản thành công nhưng không lấy được ID!");
+        return; 
+      }
 
-    // 2. Truy tìm ID của user vừa tạo bằng mọi giá
-    const responseData = res.data?.data;
-    const userId = responseData?.user?.id || responseData?.id;
-    
-    if (!userId) {
-      toast.error("Tạo tài khoản thành công nhưng không lấy được ID!");
-      console.error("Lỗi trích xuất ID, cấu trúc data là:", responseData);
-      return; // DỪNG LẠI NGAY ĐỂ TRÁNH GỌI API THỨ 2 BỊ LỖI 400
+      // 3. Gán tài khoản vào CLB
+      await pagesApi.addMember(selectedPage.id, {
+        user_id: userId,
+        is_owner: true
+      });
+
+      toast.success(`Đã cấp tài khoản quản trị cho CLB thành công!`);
+      setIsAccountModalOpen(false);
+      
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message;
+      toast.error(`Lỗi hệ thống: ${errorMessage}`);
+    } finally {
+      setIsSubmitting(false);
     }
+  };
 
-    console.log(">>> 2. ID TÀI KHOẢN HỢP LỆ:", userId);
-
-    // 3. Gán tài khoản vào CLB (Backend sẽ tự động biến user này thành PAGE_ADMIN)
-    await pagesApi.addMember(selectedPage.id, {
-      user_id: userId,
-      is_owner: true
+  const handleToggleLock = async (page: any) => {
+    const action = page.is_verified ? 'khóa' : 'mở khóa';
+    setConfirmLockAction(() => async () => {
+      setShowConfirmDialog(false);
+      try {
+        await pagesApi.update(page.id, { is_verified: !page.is_verified });
+        fetchPages();
+      } catch (err) {
+        console.error('Failed to toggle lock', err);
+        alert('Thao tác thất bại.');
+      }
     });
-
-    toast.success(`Đã cấp tài khoản quản trị cho CLB thành công!`);
-    setIsAccountModalOpen(false);
-    
-  } catch (err: any) {
-    console.error('>>> LỖI CHI TIẾT:', err);
-    // Moi chính xác câu chửi của Server ra để hiển thị lên Toast
-    const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message;
-    toast.error(`Lỗi hệ thống: ${errorMessage}`);
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-
-   const handleToggleLock = async (page: any) => {
-     const action = page.is_verified ? 'khóa' : 'mở khóa';
-     setConfirmLockAction(() => async () => {
-       setShowConfirmDialog(false);
-       try {
-         await pagesApi.update(page.id, { is_verified: !page.is_verified });
-         fetchPages();
-       } catch (err) {
-         console.error('Failed to toggle lock', err);
-         alert('Thao tác thất bại.');
-       }
-     });
-     setShowConfirmDialog(true);
-   };
+    setShowConfirmDialog(true);
+  };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 p-4 md:p-8 rounded-2xl">
+      
+      {/* Header & Actions */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-green-100 shadow-sm">
         <div>
-          <h1 className="text-3xl font-black text-gray-900">Quản lý Câu lạc bộ</h1>
-          <p className="text-gray-500 font-medium">Thêm mới, cập nhật và quản lý quyền truy cập cho các tổ chức.</p>
+          <h1 className="text-2xl md:text-3xl font-black text-green-800 tracking-tight">Quản lý Câu lạc bộ</h1>
+          <p className="text-gray-500 font-medium mt-1">Thêm mới, cập nhật và quản lý quyền truy cập cho các tổ chức.</p>
         </div>
-        <Button onClick={handleOpenCreateModal} className="rounded-2xl px-8 py-4 flex items-center space-x-2 shadow-xl shadow-blue-500/20">
-          <Plus className="h-5 w-5" />
-          <span className="font-bold">Thêm CLB mới</span>
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Nút Refresh Mới */}
+          <Button 
+            variant="outline" 
+            onClick={fetchPages} 
+            disabled={isLoading} 
+            className="rounded-lg p-2.5 border-green-200 text-green-600 hover:bg-green-50 transition-all"
+          >
+            <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+
+          <Button 
+            onClick={handleOpenCreateModal} 
+            className="rounded-lg px-6 py-2.5 flex items-center space-x-2 shadow-sm bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-medium transition-all transform hover:-translate-y-0.5"
+          >
+            <Plus className="h-5 w-5" />
+            <span>Thêm CLB mới</span>
+          </Button>
+        </div>
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white p-4 rounded-[32px] shadow-sm border border-gray-100">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-green-100 hover:shadow-md transition-shadow">
         <div className="relative">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
           <input
             type="text"
             placeholder="Tìm kiếm CLB theo tên hoặc slug..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && fetchPages()}
-            className="w-full pl-14 pr-6 py-4 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-green-100 rounded-xl text-sm font-medium focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none"
           />
         </div>
       </div>
@@ -195,62 +205,62 @@ export const PageManagement = () => {
       {/* Pages Grid */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          <Loader2 className="h-10 w-10 animate-spin text-green-500" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {pages.map((page) => (
             <motion.div
               layout
               key={page.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-               className={`bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden ${!page.is_verified ? 'opacity-75' : ''}`}
+              className={`bg-white rounded-2xl p-6 border border-green-100 shadow-sm hover:shadow-md transition-all duration-300 group relative overflow-hidden ${!page.is_verified ? 'opacity-75' : ''}`}
             >
                {!page.is_verified && (
-                <div className="absolute top-4 right-4 bg-red-500 text-white p-2 rounded-xl shadow-lg">
+                <div className="absolute top-4 right-4 bg-red-500 text-white p-1.5 rounded-lg shadow-sm">
                   <Lock className="h-4 w-4" />
                 </div>
               )}
               
-              <div className="flex items-start justify-between mb-6">
-                <div className="h-20 w-20 rounded-3xl bg-blue-50 border-4 border-white shadow-lg overflow-hidden flex items-center justify-center text-blue-600 font-black text-2xl">
+              <div className="flex items-start justify-between mb-5">
+                <div className="h-16 w-16 rounded-2xl bg-green-50 border-2 border-white shadow-sm overflow-hidden flex items-center justify-center text-green-600 font-black text-2xl group-hover:scale-105 transition-transform">
                   {page.avatar_url ? (
                     <img src={page.avatar_url} alt={page.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : page.name.charAt(0)}
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex space-x-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={() => handleOpenEditModal(page)}
-                    className="p-3 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
+                    className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
                     title="Chỉnh sửa"
                   >
-                    <Edit2 className="h-5 w-5" />
+                    <Edit2 className="h-4 w-4" />
                   </button>
                   <button 
                     onClick={() => handleToggleLock(page)}
-                    className={`p-3 rounded-2xl transition-all ${page.is_locked ? 'text-green-600 hover:bg-green-50' : 'text-orange-600 hover:bg-orange-50'}`}
+                    className={`p-2 rounded-lg transition-colors ${page.is_locked ? 'text-green-600 hover:bg-green-50' : 'text-orange-500 hover:bg-orange-50'}`}
                     title={page.is_locked ? 'Mở khóa' : 'Khóa'}
                   >
-                    {page.is_locked ? <Unlock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+                    {page.is_locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <h3 className="text-xl font-black text-gray-900 group-hover:text-blue-600 transition-colors">{page.name}</h3>
-                  <p className="text-sm font-bold text-gray-400">@{page.slug}</p>
+                  <h3 className="text-lg font-bold text-gray-800 group-hover:text-green-700 transition-colors line-clamp-1">{page.name}</h3>
+                  <p className="text-xs font-bold text-green-600/70">@{page.slug}</p>
                 </div>
                 
-                <p className="text-sm text-gray-500 line-clamp-2 font-medium leading-relaxed">
+                <p className="text-sm text-gray-500 line-clamp-2 font-medium leading-relaxed min-h-[40px]">
                   {page.description || 'Chưa có mô tả cho Câu lạc bộ này.'}
                 </p>
 
-                <div className="pt-6 border-t border-gray-50 flex items-center justify-between">
-                  <div className="flex -space-x-3">
+                <div className="pt-4 border-t border-green-50 flex items-center justify-between">
+                  <div className="flex -space-x-2">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-10 w-10 rounded-full border-4 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-400">
+                      <div key={i} className="h-8 w-8 rounded-full border-2 border-white bg-green-100 flex items-center justify-center text-[10px] font-bold text-green-600">
                         +
                       </div>
                     ))}
@@ -259,15 +269,20 @@ export const PageManagement = () => {
                     variant="outline" 
                     size="sm" 
                     onClick={() => handleOpenAccountModal(page)}
-                    className="rounded-xl border-blue-100 text-blue-600 hover:bg-blue-50 font-bold"
+                    className="rounded-lg border-green-200 text-green-700 hover:bg-green-50 font-medium text-xs px-3 py-1.5"
                   >
-                    <UserPlus className="h-4 w-4 mr-2" />
+                    <UserPlus className="h-3.5 w-3.5 mr-1.5" />
                     Cấp tài khoản
                   </Button>
                 </div>
               </div>
             </motion.div>
           ))}
+          {pages.length === 0 && !isLoading && (
+            <div className="col-span-full py-12 text-center text-gray-500">
+              Không tìm thấy Câu lạc bộ nào.
+            </div>
+          )}
         </div>
       )}
 
@@ -280,76 +295,76 @@ export const PageManagement = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 40 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 40 }}
-              className="relative w-full max-w-2xl bg-white rounded-[48px] shadow-2xl overflow-hidden"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden border border-green-100 max-h-[90vh] overflow-y-auto"
             >
-              <div className="p-10 border-b border-gray-50 flex items-center justify-between">
+              <div className="p-6 border-b border-green-50 flex items-center justify-between bg-green-50/30 sticky top-0 z-10">
                 <div>
-                  <h2 className="text-2xl font-black text-gray-900">
+                  <h2 className="text-xl font-bold text-green-800">
                     {editingPage ? 'Cập nhật CLB' : 'Thêm Câu lạc bộ mới'}
                   </h2>
-                  <p className="text-sm font-bold text-gray-400 mt-1">Điền đầy đủ thông tin định danh cho CLB.</p>
+                  <p className="text-xs font-medium text-gray-500 mt-1">Điền đầy đủ thông tin định danh cho CLB.</p>
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="p-3 hover:bg-gray-100 rounded-2xl transition-colors">
-                  <X className="h-6 w-6 text-gray-400" />
+                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white rounded-lg transition-colors">
+                  <X className="h-5 w-5 text-gray-400" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-10 space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <label className="text-sm font-black text-gray-700 ml-1">Tên Câu lạc bộ</label>
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Tên Câu lạc bộ</label>
                     <div className="relative">
-                      <Globe className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
                       <input
                         type="text"
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full pl-14 pr-6 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all"
+                        className="w-full pl-11 pr-4 py-2.5 bg-white border border-green-100 rounded-lg text-sm font-medium focus:ring-2 focus:ring-green-500 outline-none shadow-sm"
                         placeholder="VD: CLB Tin học"
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <label className="text-sm font-black text-gray-700 ml-1">Đường dẫn (Slug)</label>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Đường dẫn (Slug)</label>
                     <div className="relative">
-                      <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">@</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-green-500 font-bold">@</span>
                       <input
                         type="text"
                         required
                         value={formData.slug}
                         onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                        className="w-full pl-10 pr-6 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all"
+                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-green-100 rounded-lg text-sm font-medium focus:ring-2 focus:ring-green-500 outline-none shadow-sm"
                         placeholder="clb-tin-hoc"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-sm font-black text-gray-700 ml-1">Mô tả giới thiệu</label>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700">Mô tả giới thiệu</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={4}
-                    className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all resize-none"
+                    className="w-full px-4 py-3 bg-white border border-green-100 rounded-lg text-sm font-medium focus:ring-2 focus:ring-green-500 outline-none resize-none shadow-sm"
                     placeholder="Giới thiệu sơ lược về CLB..."
                   />
                 </div>
 
-                <div className="pt-4 flex space-x-4">
-                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 rounded-2xl font-bold">
+                <div className="pt-4 flex space-x-3">
+                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 rounded-lg border-green-200 text-green-700 hover:bg-green-50 font-medium">
                     Hủy bỏ
                   </Button>
-                  <Button type="submit" disabled={isSubmitting} className="flex-2 py-4 rounded-2xl font-bold shadow-xl shadow-blue-500/20">
-                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : (editingPage ? 'Cập nhật ngay' : 'Tạo CLB mới')}
+                  <Button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-medium shadow-sm transition-all transform hover:-translate-y-0.5">
+                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : (editingPage ? 'Cập nhật ngay' : 'Tạo CLB mới')}
                   </Button>
                 </div>
               </form>
@@ -367,68 +382,73 @@ export const PageManagement = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsAccountModalOpen(false)}
-              className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 40 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 40 }}
-              className="relative w-full max-w-md bg-white rounded-[48px] shadow-2xl overflow-hidden"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-green-100"
             >
-              <div className="p-10 border-b border-gray-50">
-                <h2 className="text-2xl font-black text-gray-900">Cấp tài khoản Admin</h2>
-                <p className="text-sm font-bold text-gray-400 mt-1">Cấp quyền quản trị cho đại diện CLB {selectedPage?.name}.</p>
+              <div className="p-6 border-b border-green-50 bg-green-50/30 flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-green-800">Cấp tài khoản Admin</h2>
+                  <p className="text-xs font-medium text-gray-500 mt-1">Đại diện: {selectedPage?.name}</p>
+                </div>
+                <button onClick={() => setIsAccountModalOpen(false)} className="p-2 hover:bg-white rounded-lg transition-colors">
+                  <X className="h-5 w-5 text-gray-400" />
+                </button>
               </div>
 
-              <form onSubmit={handleCreateAdminAccount} className="p-10 space-y-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider ml-1">Họ và tên đại diện</label>
+              <form onSubmit={handleCreateAdminAccount} className="p-6 space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Họ và tên đại diện</label>
                   <input
                     type="text"
                     required
                     value={accountData.full_name}
                     onChange={(e) => setAccountData({ ...accountData, full_name: e.target.value })}
-                    className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all"
+                    className="w-full px-4 py-2.5 bg-white border border-green-100 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none shadow-sm"
                     placeholder="Nguyễn Văn A"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider ml-1">Email đăng nhập</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Email đăng nhập</label>
                   <div className="relative">
-                    <Mail className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
                     <input
                       type="email"
                       required
                       value={accountData.email}
                       onChange={(e) => setAccountData({ ...accountData, email: e.target.value })}
-                      className="w-full pl-14 pr-6 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-green-100 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none shadow-sm"
                       placeholder="admin@clb.com"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider ml-1">Mật khẩu khởi tạo</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Mật khẩu khởi tạo</label>
                   <div className="relative">
-                    <Lock className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
                     <input
                       type="password"
                       required
                       value={accountData.password}
                       onChange={(e) => setAccountData({ ...accountData, password: e.target.value })}
-                      className="w-full pl-14 pr-6 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-green-100 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none shadow-sm"
                       placeholder="••••••••"
                     />
                   </div>
                 </div>
 
-                <div className="pt-6 flex space-x-4">
-                  <Button type="button" variant="outline" onClick={() => setIsAccountModalOpen(false)} className="flex-1 py-4 rounded-2xl font-bold">
+                <div className="pt-4 flex space-x-3">
+                  <Button type="button" variant="outline" onClick={() => setIsAccountModalOpen(false)} className="flex-1 py-2.5 border-green-200 text-green-700 hover:bg-green-50 font-medium rounded-lg">
                     Hủy
                   </Button>
-                  <Button type="submit" disabled={isSubmitting} className="flex-2 py-4 rounded-2xl font-bold shadow-xl shadow-blue-500/20">
-                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Cấp tài khoản'}
+                  <Button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600 font-medium shadow-sm rounded-lg transition-all transform hover:-translate-y-0.5">
+                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Cấp tài khoản'}
                   </Button>
                 </div>
               </form>
@@ -441,7 +461,7 @@ export const PageManagement = () => {
         isOpen={showConfirmDialog}
         onClose={() => setShowConfirmDialog(false)}
         onConfirm={() => confirmLockAction && confirmLockAction()}
-        title="Xác nhận khóa/mở khóa"
+        title="Xác nhận thao tác"
         description="Bạn có chắc chắn muốn thực hiện thao tác này với Câu lạc bộ này?"
         confirmText="Xác nhận"
       />
