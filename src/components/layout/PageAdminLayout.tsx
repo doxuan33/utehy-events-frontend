@@ -15,14 +15,23 @@ import {
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
+import { useNotificationsStore } from '@/store/notifications.store';
 import { Avatar } from '@/components/common/Avatar';
 
 export const PageAdminLayout = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { unreadCount, connectRealtime, disconnectRealtime } = useNotificationsStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    connectRealtime();
+    return () => {
+      disconnectRealtime();
+    };
+  }, [connectRealtime, disconnectRealtime]);
 
   const menuItems = [
     { path: '/page-admin', icon: LayoutDashboard, label: 'Tổng quan', exact: true },
@@ -154,11 +163,15 @@ export const PageAdminLayout = () => {
 
             {/* Right - Notifications + Profile */}
             <div className="flex items-center gap-2 ml-4">
-              {/* Notification Bell */}
-              <button className="relative p-2 text-gray-600 hover:text-emerald-600 hover:bg-gray-100 rounded-lg transition-colors">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
-              </button>
+               {/* Notification Bell */}
+               <button className="relative p-2 text-gray-600 hover:text-emerald-600 hover:bg-gray-100 rounded-lg transition-colors">
+                 <Bell className="h-5 w-5" />
+                 {unreadCount > 0 && (
+                   <span className="absolute top-1 right-1 flex h-[18px] w-[18px] items-center justify-center bg-red-500 text-xs font-medium text-white rounded-full -translate-x-1/2 -translate-y-1/2">
+                     {unreadCount > 9 ? '9+' : unreadCount}
+                   </span>
+                 )}
+               </button>
 
               {/* Profile Dropdown */}
               <div ref={profileMenuRef} className="relative">

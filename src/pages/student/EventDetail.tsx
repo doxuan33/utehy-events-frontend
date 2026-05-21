@@ -7,8 +7,11 @@ import { Badge } from '@/components/common/Badge';
 import { Avatar } from '@/components/common/Avatar';
 import { LiveQA } from '@/components/ui/LiveQA';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { motion } from 'motion/react';
-import { Calendar, MapPin, Users, Clock, ArrowLeft, Share2, Info, QrCode, MessageCircle } from 'lucide-react';
+import { motion } from 'framer-motion'; 
+import { 
+  Calendar, MapPin, Users, Clock, ArrowLeft, Share2, 
+  Info, QrCode, MessageCircle, Award, Sparkles, Building2
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
@@ -45,36 +48,29 @@ export const EventDetail = () => {
   const handleRegisterToggle = async () => {
     if (isRegistering) return;
 
-    // Capacity check for registration
     if (!isRegistered && regCount >= (event?.max_slots || Infinity)) {
       toast.error('Rất tiếc, sự kiện này đã hết chỗ trống.');
       return;
     }
 
     if (isRegistered) {
-      // Cancel registration flow requires confirmation
       setShowConfirmDialog(true);
       return;
     }
 
-    // Optimistic UI for registration
     setIsRegistering(true);
     setRegCount(prev => prev + 1);
     setIsRegistered(true);
 
     try {
       await registrationsApi.register(id!);
-      toast.success('Đăng ký tham gia thành công! Đã thêm vào lịch trình của bạn.');
-
-      // Refresh event to ensure consistency
+      toast.success('Đăng ký tham gia thành công!');
       const res = await eventsApi.getById(id!);
       setEvent(res.data.data);
       setRegCount(res.data.data._count?.registrations || regCount + 1);
     } catch (err: any) {
-      // Revert optimistic update on error
       setRegCount(prev => prev - 1);
       setIsRegistered(false);
-
       const message = err.response?.data?.message || 'Thao tác thất bại.';
       if (message.toLowerCase().includes('overlap')) {
         toast.error('Lỗi: Bạn đã có một sự kiện khác diễn ra vào thời gian này.');
@@ -89,21 +85,16 @@ export const EventDetail = () => {
   const handleConfirmCancel = async () => {
     setShowConfirmDialog(false);
     setIsRegistering(true);
-
-    // Optimistic UI for cancellation
     setRegCount(prev => prev - 1);
     setIsRegistered(false);
 
     try {
       await registrationsApi.cancel(id!);
-      toast.success('Đã hủy đăng ký tham gia sự kiện.');
-
-      // Refresh event to ensure consistency
+      toast.success('Đã hủy đăng ký.');
       const res = await eventsApi.getById(id!);
       setEvent(res.data.data);
       setRegCount(res.data.data._count?.registrations || regCount - 1);
     } catch (err: any) {
-      // Revert optimistic update on error
       setRegCount(prev => prev + 1);
       setIsRegistered(true);
       toast.error(err.response?.data?.message || 'Hủy đăng ký thất bại.');
@@ -112,144 +103,200 @@ export const EventDetail = () => {
     }
   };
 
-   if (isLoading) return (
-     <div className="p-8 text-center">
-       <div className="bg-white border border-gray-100 rounded-xl p-12 max-w-md mx-auto shadow-sm">
-         <div className="animate-pulse">
-           <div className="h-8 bg-gray-200 rounded-lg mb-4"></div>
-           <div className="h-4 bg-gray-200 rounded-lg mb-2"></div>
-           <div className="h-4 bg-gray-200 rounded-lg w-3/4"></div>
-         </div>
-       </div>
-     </div>
-   );
-   if (!event) return <div className="p-8 text-center bg-white border border-gray-100 rounded-xl shadow-sm">Không tìm thấy sự kiện.</div>;
+  if (isLoading) return (
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white p-8 flex justify-center items-start pt-20">
+      <div className="bg-white/80 backdrop-blur-sm border border-emerald-100 rounded-3xl p-12 w-full max-w-md shadow-xl shadow-emerald-900/5">
+        <div className="animate-pulse space-y-4">
+          <div className="h-48 bg-emerald-100/50 rounded-2xl mb-6"></div>
+          <div className="h-8 bg-emerald-100/50 rounded-lg w-3/4"></div>
+          <div className="h-4 bg-emerald-100/50 rounded-lg w-1/2"></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!event) return <div className="p-8 text-center text-gray-500 font-medium mt-10">Không tìm thấy sự kiện.</div>;
 
   const maxSlots = event.max_slots || Infinity;
-  const availableSlots = maxSlots - regCount;
   const displayRegCount = event._count?.registrations !== undefined ? regCount : event._count?.registrations;
 
   return (
-    <div className="max-w-7xl mx-auto pb-20 px-4">
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-6 flex items-center text-gray-600 hover:text-emerald-600 transition-colors bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm"
-      >
-        <ArrowLeft className="h-5 w-5 mr-2" />
-        Quay lại
-      </button>
+    <div className="min-h-screen from-emerald-50/80 via-white to-white pb-24">
+      <div className="max-w-7xl mx-auto px-4 pt-6 md:pt-8">
+        
+        <button
+          onClick={() => navigate(-1)}
+          className="mb-6 flex items-center text-gray-600 hover:text-emerald-600 font-medium transition-all bg-white/70 backdrop-blur-md px-4 py-2 rounded-full border border-emerald-100 shadow-sm hover:shadow-md w-fit"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Quay lại
+        </button>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="overflow-hidden"
-      >
-        <img
-          src={event.banner_url || `https://picsum.photos/seed/${event.id}/1600/600`}
-          className="w-full h-64 md:h-80 object-cover rounded-2xl"
-          alt={event.title}
-          referrerPolicy="no-referrer"
-        />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="relative w-full h-[250px] md:h-[350px] rounded-[2rem] overflow-hidden shadow-lg shadow-emerald-900/10 group">
+            <img
+              src={event.banner_url || `https://picsum.photos/seed/${event.id}/1600/600`}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              alt={event.title}
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+          </div>
+          <h1 className="mt-8 px-2 text-2xl md:text-[28px] font-bold text-gray-800 leading-tight">
+            {event.title}
+          </h1>
 
-        <div className="flex flex-col lg:flex-row gap-8 mt-8">
-          <div className="flex-1 lg:flex-[70%] space-y-8">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-              <div className="flex-1">
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight">
-                  {event.title}
-                </h1>
-                <div className="flex flex-wrap gap-3">
-                  <div className="flex items-center text-gray-600 bg-gray-50 px-4 py-2.5 rounded-xl">
-                    <Clock className="h-4 w-4 mr-2 text-emerald-500" />
-                    <span className="text-sm font-medium">
-                      {format(new Date(event.start_time), 'HH:mm, dd/MM/yyyy', { locale: vi })}
-                    </span>
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 mt-6 md:mt-8">
+            
+            <div className="flex-1 min-w-0 space-y-10">
+              
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge variant="success" className="bg-emerald-100 text-emerald-800 border-none px-3 py-1 rounded-full font-semibold">
+                    Sự kiện
+                  </Badge>
+                  <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-400 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-md shadow-emerald-500/20">
+                    <Award className="h-4 w-4" />
+                    +{event.training_points} Điểm rèn luyện
                   </div>
-                  <div className="flex items-center text-gray-600 bg-gray-50 px-4 py-2.5 rounded-xl">
-                    <MapPin className="h-4 w-4 mr-2 text-emerald-500" />
-                    <span className="text-sm font-medium">{event.location}</span>
+                </div>
+                
+
+                <div className="flex flex-col gap-4 pt-2">
+                  <div className="flex items-start text-gray-700">
+                    <Clock className="h-5 w-5 mr-3 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-gray-900">Thời gian: </span>
+                      {format(new Date(event.start_time), 'HH:mm - dd/MM/yyyy', { locale: vi })}
+                    </div>
                   </div>
-                  <div className="flex items-center text-gray-600 bg-gray-50 px-4 py-2.5 rounded-xl">
-                    <Users className="h-4 w-4 mr-2 text-emerald-500" />
-                    <span className="text-sm font-medium">
-                      {displayRegCount || regCount}/{maxSlots === Infinity ? '∞' : maxSlots} người đăng ký
-                    </span>
+                  
+                  <div className="flex items-start text-gray-700">
+                    <MapPin className="h-5 w-5 mr-3 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-gray-900">Địa điểm: </span>
+                      {event.location}
+                    </div>
+                  </div>
+
+                  <div className="flex items-start text-gray-700">
+                    <Users className="h-5 w-5 mr-3 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-gray-900">Số lượng đăng ký: </span>
+                      <span className="text-emerald-600 font-bold">{displayRegCount || regCount}</span>
+                      <span className="text-gray-400 mx-1">/</span>
+                      {maxSlots === Infinity ? 'Không giới hạn' : maxSlots}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col items-center p-6 bg-emerald-500 text-white rounded-xl shadow-sm">
-                <span className="text-xs font-bold uppercase mb-1 opacity-90">Điểm rèn luyện</span>
-                <span className="text-4xl font-bold">+{event.training_points}</span>
-              </div>
-            </div>
+              <section className="bg-white rounded-[2rem] p-6 md:p-8 border border-emerald-100/50 shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900 mb-5 flex items-center">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mr-3">
+                    <Info className="h-4 w-4" />
+                  </div>
+                  Giới thiệu sự kiện
+                </h2>
+                <div className="text-gray-600 leading-relaxed space-y-4">
+                  {event.description ? (
+                    <p className="whitespace-pre-wrap">{event.description}</p>
+                  ) : (
+                    <p className="italic text-gray-400">Chưa có mô tả chi tiết.</p>
+                  )}
+                </div>
+              </section>
 
-            <section>
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                <Info className="h-5 w-5 mr-2 text-emerald-600" />
-                Mô tả sự kiện
-              </h2>
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-6">
-                <p className="text-gray-700 leading-relaxed">
-                  {event.description || 'Chưa có mô tả chi tiết cho sự kiện này.'}
-                </p>
-              </div>
-            </section>
+              <section className="bg-white rounded-[2rem] p-6 md:p-8 border border-emerald-100/50 shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900 mb-5 flex items-center">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mr-3">
+                    <MessageCircle className="h-4 w-4" />
+                  </div>
+                  Thảo luận & Hỏi đáp (Live)
+                </h2>
+                <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
+                   <LiveQA eventId={event.id} />
+                </div>
+              </section>
 
-            <section>
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                <MessageCircle className="h-5 w-5 mr-2 text-emerald-600" />
-                Live Q&A (Socket.io)
-              </h2>
-              <LiveQA eventId={event.id} />
-            </section>
-
-            <section>
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-6">
-                <h3 className="font-bold text-gray-900 mb-4">Đơn vị tổ chức</h3>
-                <div className="flex items-center gap-4">
-                  <Avatar src={event.page?.logo_url} name={event.page?.name} size="lg" />
+              <section className="bg-white rounded-[2rem] p-6 md:p-8 border border-emerald-100/50 shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900 mb-5 flex items-center">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mr-3">
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  Đơn vị tổ chức
+                </h2>
+                <div className="flex items-center gap-5 bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100/50 hover:bg-emerald-50 transition-colors">
+                  <div className="p-1 bg-white rounded-full shadow-sm">
+                    <Avatar src={event.page?.logo_url} name={event.page?.name} size="lg" />
+                  </div>
                   <div>
-                    <h4 className="font-bold text-gray-900">{event.page?.name}</h4>
-                    <p className="text-sm text-gray-500 line-clamp-2">{event.page?.description}</p>
-                    <Button variant="ghost" size="sm" className="mt-2 -ml-2 text-emerald-600">
-                      Xem trang CLB
+                    <h4 className="font-bold text-gray-900 text-lg mb-1">{event.page?.name}</h4>
+                    <p className="text-sm text-gray-500 line-clamp-2 mb-2">{event.page?.description}</p>
+                    <Button variant="ghost" size="sm" className="h-8 px-3 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100/50 rounded-full font-semibold">
+                      Xem trang
                     </Button>
                   </div>
                 </div>
-              </div>
-            </section>
-          </div>
+              </section>
+            </div>
 
-          <div className="lg:flex-[30%]">
-            <div className="bg-white/80 backdrop-blur-md border border-gray-100 rounded-xl p-6 shadow-sm sticky top-24">
-              <h3 className="font-bold text-gray-900 mb-4">Đăng ký tham gia</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Trạng thái</span>
-                  <Badge variant="success">Đang mở</Badge>
+            {/* CỘT PHẢI (SIDEBAR) - Cố định độ rộng w-[360px] đến w-[380px] */}
+            <div className="w-full lg:w-[300px] xl:w-[320px] shrink-0">
+              <div className="bg-white/70 backdrop-blur-xl border border-emerald-100/80 rounded-[2rem] p-7 shadow-[0_8px_30px_rgb(16,185,129,0.06)] sticky top-24">
+                
+                <div className="flex items-center justify-between mb-6 pb-5 border-b border-gray-100">
+                  <h3 className="font-bold text-xl text-gray-900">Đăng ký</h3>
+                  <Badge className="bg-emerald-100 text-emerald-700 border-none px-3 py-1 animate-pulse">
+                    Đang mở
+                  </Badge>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Hạn đăng ký</span>
-                  <span className="font-medium">
-                    {format(new Date(event.registration_deadline), 'dd/MM/yyyy', { locale: vi })}
-                  </span>
+                
+                {/* THIẾT KẾ LẠI BÊN TRONG: Các khối hộp riêng biệt giúp chống bóp chữ */}
+                <div className="space-y-2 mb-8">
+                  <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-2xl border border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white rounded-xl shadow-sm text-emerald-500">
+                        <Calendar className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-600">Hạn đăng ký</span>
+                    </div>
+                    <span className="font-bold text-gray-900 whitespace-nowrap">
+                      {format(new Date(event.registration_deadline), 'dd/MM/yyyy')}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-2xl border border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white rounded-xl shadow-sm text-emerald-500">
+                        <Sparkles className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-600">Điểm thưởng</span>
+                    </div>
+                    <span className="font-bold text-emerald-600 whitespace-nowrap">
+                      +{event.training_points} điểm
+                    </span>
+                  </div>
                 </div>
 
                 {isRegistered && event.status === 'ONGOING' && (
-                  <Link to="/scan-qr" className="block w-full">
-                    <Button className="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 shadow-sm mb-4">
+                  <Link to="/scan-qr" className="block w-full mb-4">
+                    <Button className="w-full py-5 rounded-2xl bg-gray-900 hover:bg-black text-white shadow-lg transition-transform hover:scale-[1.02]">
                       <QrCode className="h-5 w-5 mr-2" />
-                      Điểm danh ngay
+                      Điểm danh QR
                     </Button>
                   </Link>
                 )}
 
                 <Button
-                  className={`w-full py-4 text-lg rounded-xl shadow-sm font-semibold transition-all ${
+                  className={`w-full py-5 text-base rounded-2xl shadow-lg font-bold transition-all duration-300 hover:scale-[1.02] ${
                     isRegistered
-                      ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-                      : 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-white hover:from-emerald-600 hover:to-emerald-500'
+                      ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 shadow-red-500/10'
+                      : 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white hover:from-emerald-600 hover:to-teal-500 shadow-emerald-500/25'
                   }`}
                   onClick={handleRegisterToggle}
                   isLoading={isRegistering}
@@ -257,24 +304,26 @@ export const EventDetail = () => {
                   {isRegistered ? 'HỦY ĐĂNG KÝ' : 'ĐĂNG KÝ NGAY'}
                 </Button>
 
-                <Button variant="outline" className="w-full rounded-xl">
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Chia sẻ
-                </Button>
+                <div className="mt-5 pt-5 border-t border-gray-100">
+                  <Button variant="ghost" className="w-full rounded-2xl text-gray-600 hover:bg-gray-50 hover:text-gray-900">
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Chia sẻ sự kiện
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
 
-      <ConfirmDialog
-        isOpen={showConfirmDialog}
-        onClose={() => setShowConfirmDialog(false)}
-        onConfirm={handleConfirmCancel}
-        title="Xác nhận hủy đăng ký"
-        description="Bạn có chắc chắn muốn hủy đăng ký tham gia sự kiện này không? Sau khi hủy, bạn sẽ mất điểm rèn luyện từ sự kiện này."
-        confirmText="Hủy đăng ký"
-      />
+        <ConfirmDialog
+          isOpen={showConfirmDialog}
+          onClose={() => setShowConfirmDialog(false)}
+          onConfirm={handleConfirmCancel}
+          title="Xác nhận hủy"
+          description="Bạn có chắc chắn muốn hủy đăng ký tham gia sự kiện này không? Bạn sẽ không nhận được điểm rèn luyện."
+          confirmText="Xác nhận hủy"
+        />
+      </div>
     </div>
   );
 };

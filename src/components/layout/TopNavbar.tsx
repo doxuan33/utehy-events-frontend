@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { useEffect } from 'react';
 import { Search, Bell, MessageCircle, LogOut, User as UserIcon, Menu, X, Home, Calendar, Users, QrCode, BookOpen } from 'lucide-react';
 import { Avatar } from '@/components/common/Avatar';
 import { useAuthStore } from '@/store/auth.store';
@@ -16,11 +17,20 @@ const navItems = [
 
 export const TopNavbar = () => {
   const { user, logout } = useAuthStore();
-  const { unreadCount } = useNotificationsStore();
+  const { unreadCount, connectRealtime, disconnectRealtime } = useNotificationsStore();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      connectRealtime();
+    }
+    return () => {
+      disconnectRealtime();
+    };
+  }, [user, connectRealtime, disconnectRealtime]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

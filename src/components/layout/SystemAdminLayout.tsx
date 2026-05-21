@@ -1,12 +1,34 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { BarChart3, Calendar, FileText, Building2, Tag, Users, Bell, Menu, User, Settings, LogOut, Hexagon } from 'lucide-react';
-import { useState } from 'react';
+import {
+  BarChart3,
+  Calendar,
+  FileText,
+  Building2,
+  Tag,
+  Users,
+  Bell,
+  Menu,
+  User,
+  Settings,
+  LogOut,
+  Hexagon,
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
+import { useNotificationsStore } from '@/store/notifications.store';
 
 export const SystemAdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user, logout } = useAuthStore();
+  const { unreadCount, connectRealtime, disconnectRealtime } = useNotificationsStore();
+
+  useEffect(() => {
+    connectRealtime();
+    return () => {
+      disconnectRealtime();
+    };
+  }, [connectRealtime, disconnectRealtime]);
 
   const menuItems = [
     { path: '/admin', icon: BarChart3, label: 'Tổng quan', exact: true },
@@ -17,9 +39,7 @@ export const SystemAdminLayout = () => {
   ];
 
   return (
-    // Background Gradient: Xanh lá nhạt -> Trắng -> Xám nhạt (Tech vibe)
     <div className="min-h-screen flex bg-gradient-to-br from-emerald-50 via-white to-slate-50">
-      
       {/* Mobile Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -95,10 +115,8 @@ export const SystemAdminLayout = () => {
 
       {/* Main Wrapper: Topbar + Content */}
       <div className="flex-1 flex flex-col md:ml-72 min-w-0 transition-all duration-300">
-        
         {/* Topbar (Glassmorphism) */}
         <header className="h-20 bg-white/60 backdrop-blur-md border-b border-white/50 shadow-sm flex items-center justify-between px-6 sticky top-0 z-30">
-          
           {/* Left: Hamburger Mobile + Title */}
           <div className="flex items-center gap-4">
             <button
@@ -122,7 +140,11 @@ export const SystemAdminLayout = () => {
             {/* Notification Bell */}
             <button className="relative p-2.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm group">
               <Bell className="h-5 w-5 group-hover:animate-wiggle" />
-              <span className="absolute top-2 right-2.5 h-2 w-2 bg-rose-500 rounded-full border-2 border-white animate-pulse"></span>
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-2.5 flex h-[18px] w-[18px] items-center justify-center bg-rose-500 text-xs font-medium text-white rounded-full border-2 border-white -translate-x-1/2 -translate-y-1/2">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
 
             <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>

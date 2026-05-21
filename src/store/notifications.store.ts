@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { notificationsApi } from '@/api/notifications.api';
 import { useAuthStore } from './auth.store';
+import { toast } from '@/components/ui/ToasterSetup';
 
 export interface Notification {
   id: string;
@@ -83,18 +84,19 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
        (window as any)._sseRetryDelay = 5000;
      };
 
-    es.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'UNREAD_COUNT') {
-        set({ unreadCount: data.unread_count });
-      } else if (data.type === 'CONNECTED') {
-        // Handled by onopen usually, but some backends send this
-      } else if (data.id) {
-        // This is a new notification
-        get().addNotification(data);
-      }
-    };
+     es.onmessage = (event) => {
+       const data = JSON.parse(event.data);
+       
+       if (data.type === 'UNREAD_COUNT') {
+         set({ unreadCount: data.unread_count });
+       } else if (data.type === 'CONNECTED') {
+         // Handled by onopen usually, but some backends send this
+       } else if (data.id) {
+         // This is a new notification
+         get().addNotification(data);
+         toast(data.title, { description: data.body });
+       }
+     };
 
      es.onerror = (err) => {
        console.error('SSE Error:', err);
