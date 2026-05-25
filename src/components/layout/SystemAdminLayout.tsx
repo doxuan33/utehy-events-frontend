@@ -4,24 +4,25 @@ import {
   BarChart3,
   Calendar,
   FileText,
-  Building2,
   Tag,
   Users,
-  Bell,
   Menu,
   User,
-  Settings,
   LogOut,
   Hexagon,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { useNotificationsStore } from '@/store/notifications.store';
+// 1. IMPORT COMPONENT CHUÔNG THÔNG BÁO VÀO ĐÂY
+import { NotificationBell } from '@/components/common/NotificationBell';
 
 export const SystemAdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user, logout } = useAuthStore();
-  const { unreadCount, connectRealtime, disconnectRealtime } = useNotificationsStore();
+  
+  // 2. BỎ unreadCount Ở ĐÂY VÌ NotificationBell SẼ TỰ QUẢN LÝ
+  const { connectRealtime, disconnectRealtime } = useNotificationsStore();
 
   useEffect(() => {
     connectRealtime();
@@ -137,15 +138,9 @@ export const SystemAdminLayout = () => {
 
           {/* Right: Notifications + Admin Profile */}
           <div className="flex items-center gap-4">
-            {/* Notification Bell */}
-            <button className="relative p-2.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm group">
-              <Bell className="h-5 w-5 group-hover:animate-wiggle" />
-              {unreadCount > 0 && (
-                <span className="absolute top-2 right-2.5 flex h-[18px] w-[18px] items-center justify-center bg-rose-500 text-xs font-medium text-white rounded-full border-2 border-white -translate-x-1/2 -translate-y-1/2">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </button>
+            
+            {/* 3. GỌI COMPONENT CHUÔNG THÔNG BÁO TẠI ĐÂY */}
+            <NotificationBell />
 
             <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
 
@@ -165,7 +160,6 @@ export const SystemAdminLayout = () => {
 
         {/* Main Content Area */}
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
-          {/* Framer motion wrapper cho hiệu ứng mượt mà khi đổi trang (optional but nice) */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

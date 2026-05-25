@@ -111,8 +111,10 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
        setTimeout(() => get().connectRealtime(), nextDelay);
      };
 
-    set({ eventSource: es });
-  },
+     set({ eventSource: es });
+     // Fetch initial unread count to ensure correct badge on page load
+     get().fetchUnreadCount();
+   },
 
   disconnectRealtime: () => {
     const { eventSource } = get();

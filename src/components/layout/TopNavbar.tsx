@@ -1,11 +1,12 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect } from 'react';
-import { Search, Bell, MessageCircle, LogOut, User as UserIcon, Menu, X, Home, Calendar, Users, QrCode, BookOpen } from 'lucide-react';
+import { Search, MessageCircle, LogOut, User as UserIcon, Menu, X, Home, Calendar, Users, QrCode, BookOpen } from 'lucide-react';
 import { Avatar } from '@/components/common/Avatar';
 import { useAuthStore } from '@/store/auth.store';
-import { useNotificationsStore } from '@/store/notifications.store';
 import { useState } from 'react';
+import { NotificationBell } from '@/components/common/NotificationBell';
+import { useNotificationsStore } from '@/store/notifications.store';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Trang chủ' },
@@ -17,7 +18,7 @@ const navItems = [
 
 export const TopNavbar = () => {
   const { user, logout } = useAuthStore();
-  const { unreadCount, connectRealtime, disconnectRealtime } = useNotificationsStore();
+  const { connectRealtime, disconnectRealtime } = useNotificationsStore();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -109,21 +110,7 @@ export const TopNavbar = () => {
             <>
               {/* Desktop Icons */}
               <div className="hidden md:flex items-center gap-2">
-                <NavLink
-                  to="/notifications"
-                  className={({ isActive }) =>
-                    `relative p-2 rounded-full transition-colors ${
-                      isActive ? 'text-emerald-500 bg-emerald-50' : 'text-gray-600 hover:text-emerald-500 hover:bg-gray-100'
-                    }`
-                  }
-                >
-                  <Bell className="h-5 w-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </NavLink>
+                <NotificationBell />
 
                 <button className="p-2 text-gray-600 hover:text-emerald-500 hover:bg-gray-100 rounded-full transition-colors">
                   <MessageCircle className="h-5 w-5" />

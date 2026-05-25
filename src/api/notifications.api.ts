@@ -16,11 +16,11 @@ export const notificationsApi = {
   getUnreadCount: () =>
     apiClient.get('/notifications/unread-count'),
 
-  markAsRead: (id: string) =>
-    apiClient.post(`/notifications/${id}/mark-read`),
-
-  markAllAsRead: () =>
-    apiClient.post('/notifications/mark-all-read'),
+   markAsRead: (id: string) =>
+     apiClient.patch(`/notifications/${id}/read`),
+   
+   markAllAsRead: () =>
+     apiClient.patch('/notifications/read-all'),
     
   deleteNotification: (id: string) =>
     apiClient.delete(`/notifications/${id}`),
