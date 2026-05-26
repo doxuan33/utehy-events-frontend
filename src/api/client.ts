@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/auth.store';
 
 
 //(import.meta as any).env.VITE_API_URL || 
-const rawBaseUrl = (import.meta as any).env.VITE_API_URL || 'http:localhost:3001/api/v1';
+const rawBaseUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
 export const BASE_URL = rawBaseUrl.replace(/[\[\]\(\)\s]/g, '');
 

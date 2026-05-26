@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { Calendar, MapPin } from 'lucide-react';
+import { Calendar, MapPin, Users } from 'lucide-react'; // Thêm icon Users
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { eventsApi } from '../../api/events.api';
@@ -89,11 +89,46 @@ export const HeroEventBanner = ({ event }: HeroEventBannerProps) => {
   useEffect(() => {
     const fetchFeaturedEvent = async () => {
       try {
-        const response = await eventsApi.getAll({ limit: 1, status: 'APPROVED' });
+        // Tăng limit lên 20 để lấy ra danh sách kiện, sau đó lọc ở phía client
+        const response = await eventsApi.getAll({ limit: 20, status: 'APPROVED' });
         const data = response.data.data;
         const events = Array.isArray(data) ? data : data?.data || [];
+
         if (events.length > 0) {
-          setFeaturedEvent(events[0]);
+          const now = new Date();
+
+          // 1. Lọc bỏ các sự kiện đã kết thúc
+          const activeEvents = events.filter((e: any) => {
+            const endTime = e.end_time ? new Date(e.end_time) : null;
+            const startTime = new Date(e.start_time);
+            
+            if (endTime) {
+              return endTime > now; // Có thời gian kết thúc và chưa kết thúc
+            } else {
+              // Nếu không có end_time, giả định sự kiện hợp lệ nếu mới bắt đầu chưa quá 24h hoặc ở tương lai
+              const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+              return startTime > oneDayAgo;
+            }
+          });
+
+          // 2. Sắp xếp: Ưu tiên nhiều lượt đăng ký nhất -> Sau đó ưu tiên ngày bắt đầu gần nhất
+          activeEvents.sort((a: any, b: any) => {
+            const aReg = a._count?.registrations || 0;
+            const bReg = b._count?.registrations || 0;
+
+            if (bReg !== aReg) {
+              return bReg - aReg; // Giảm dần theo số lượng đăng ký
+            }
+
+            // Nếu số lượng đăng ký bằng nhau, ưu tiên sự kiện sắp diễn ra gần nhất
+            const aTime = new Date(a.start_time).getTime();
+            const bTime = new Date(b.start_time).getTime();
+            return aTime - bTime;
+          });
+
+          if (activeEvents.length > 0) {
+            setFeaturedEvent(activeEvents[0]); // Lấy sự kiện tốt nhất sau khi lọc
+          }
         }
       } catch (error) {
         console.error('Error fetching featured event:', error);
@@ -120,6 +155,12 @@ export const HeroEventBanner = ({ event }: HeroEventBannerProps) => {
     return <DefaultBanner />;
   }
 
+  // Xác định trạng thái của sự kiện (Đang diễn ra hay Sắp tới)
+  const now = new Date();
+  const startTime = new Date(displayEvent.start_time);
+  const isOngoing = startTime <= now;
+  const tagLabel = isOngoing ? 'ĐANG DIỄN RA • HOT' : 'SẮP TỚI • HOT';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -136,30 +177,36 @@ export const HeroEventBanner = ({ event }: HeroEventBannerProps) => {
 
       <div className="relative h-full flex flex-col justify-between p-6 md:p-8 text-white">
         <div>
-          <span className="inline-block bg-emerald-500 text-white px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
-            ĐANG DIỄN RA • HOT
+          <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${isOngoing ? 'bg-rose-500' : 'bg-emerald-500'} text-white shadow-md`}>
+            {tagLabel}
           </span>
         </div>
 
         <div className="max-w-2xl">
-          <h1 className="text-2xl md:text-4xl font-black mb-3 leading-tight">
+          <h1 className="text-2xl md:text-4xl font-black mb-3 leading-tight drop-shadow-md">
             {displayEvent.title}
           </h1>
           <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 text-sm">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-emerald-300" />
               <span>
-                {format(new Date(displayEvent.start_time), 'EEEE, dd/MM/yyyy • HH:mm', { locale: vi })}
+                {format(startTime, 'EEEE, dd/MM/yyyy • HH:mm', { locale: vi })}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-emerald-300" />
-              <span>{displayEvent.location}</span>
+              <span className="line-clamp-1">{displayEvent.location}</span>
             </div>
+            {displayEvent._count?.registrations !== undefined && (
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-emerald-300" />
+                <span>{displayEvent._count.registrations} người tham gia</span>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end mt-4 md:mt-0">
           <Link to={`/events/${displayEvent.id}`}>
             <button className="px-8 py-3 bg-white text-emerald-600 font-bold rounded-full hover:bg-emerald-50 hover:scale-105 transition-all shadow-lg">
               XEM CHI TIẾT
