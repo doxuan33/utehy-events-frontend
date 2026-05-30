@@ -41,6 +41,7 @@ export const TopNavbar = () => {
   };
 
   const handleLogout = () => {
+    useNotificationsStore.getState().clearNotifications();
     logout();
     navigate('/login');
   };

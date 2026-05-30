@@ -43,6 +43,7 @@ export const PageAdminLayout = () => {
   ];
 
   const handleLogout = () => {
+    useNotificationsStore.getState().clearNotifications();
     logout();
     navigate('/login');
   };

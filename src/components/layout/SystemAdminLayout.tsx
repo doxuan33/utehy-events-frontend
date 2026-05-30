@@ -104,7 +104,10 @@ export const SystemAdminLayout = () => {
           {/* Admin Footer */}
           <div className="p-5 border-t border-slate-100/80 bg-gradient-to-b from-transparent to-white">
             <button
-              onClick={() => logout()}
+              onClick={() => {
+                useNotificationsStore.getState().clearNotifications();
+                logout();
+              }}
               className="group flex items-center gap-3 px-4 py-3 w-full text-left text-rose-500 hover:bg-rose-50 rounded-xl transition-all duration-300 border border-transparent hover:border-rose-100"
             >
               <LogOut className="h-5 w-5 transition-transform group-hover:-translate-x-1" />

@@ -19,7 +19,7 @@ interface NotificationsState {
   unreadCount: number;
   eventSource: EventSource | null;
   isLoading: boolean;
-  
+
   fetchNotifications: (params?: any) => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   connectRealtime: () => void;
@@ -27,6 +27,7 @@ interface NotificationsState {
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   addNotification: (notification: Notification) => void;
+  clearNotifications: () => void;
 }
 
 export const useNotificationsStore = create<NotificationsState>((set, get) => ({
@@ -39,9 +40,9 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     set({ isLoading: true });
     try {
       const res = await notificationsApi.getAll(params);
-      set({ 
+      set({
         notifications: res.data.data.data,
-        unreadCount: res.data.data.meta.unread_count
+        unreadCount: res.data.data.meta.unread_count,
       });
     } catch (err) {
       console.error('Failed to fetch notifications', err);
@@ -62,8 +63,12 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   addNotification: (notification) => {
     set((state) => ({
       notifications: [notification, ...state.notifications].slice(0, 50),
-      unreadCount: state.unreadCount + 1
+      unreadCount: state.unreadCount + 1,
     }));
+  },
+
+  clearNotifications: () => {
+    set({ notifications: [], unreadCount: 0 });
   },
 
   connectRealtime: () => {
@@ -78,43 +83,38 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
     const es = new EventSource(url.toString());
 
-     es.onopen = () => {
-       // Connection established successfully
-       // Reset retry delay on successful connection if we had one
-       (window as any)._sseRetryDelay = 5000;
-     };
+    es.onopen = () => {
+      (window as any)._sseRetryDelay = 5000;
+    };
 
-     es.onmessage = (event) => {
-       const data = JSON.parse(event.data);
-       
-       if (data.type === 'UNREAD_COUNT') {
-         set({ unreadCount: data.unread_count });
-       } else if (data.type === 'CONNECTED') {
-         // Handled by onopen usually, but some backends send this
-       } else if (data.id) {
-         // This is a new notification
-         get().addNotification(data);
-         toast(data.title, { description: data.body });
-       }
-     };
+    es.onmessage = (event) => {
+      const data = JSON.parse(event.data);
 
-     es.onerror = (err) => {
-       console.error('SSE Error:', err);
-       es.close();
-       set({ eventSource: null });
+      if (data.type === 'UNREAD_COUNT') {
+        set({ unreadCount: data.unread_count });
+      } else if (data.type === 'CONNECTED') {
+        // handled by onopen
+      } else if (data.id) {
+        get().addNotification(data);
+        toast(data.title, { description: data.body });
+      }
+    };
 
-       // Exponential backoff for retry
-       const currentDelay = (window as any)._sseRetryDelay || 5000;
-       const nextDelay = Math.min(currentDelay * 2, 60000); // Max 1 minute
-       (window as any)._sseRetryDelay = nextDelay;
+    es.onerror = (err) => {
+      console.error('SSE Error:', err);
+      es.close();
+      set({ eventSource: null });
 
-       setTimeout(() => get().connectRealtime(), nextDelay);
-     };
+      const currentDelay = (window as any)._sseRetryDelay || 5000;
+      const nextDelay = Math.min(currentDelay * 2, 60000);
+      (window as any)._sseRetryDelay = nextDelay;
 
-     set({ eventSource: es });
-     // Fetch initial unread count to ensure correct badge on page load
-     get().fetchUnreadCount();
-   },
+      setTimeout(() => get().connectRealtime(), nextDelay);
+    };
+
+    set({ eventSource: es });
+    get().fetchUnreadCount();
+  },
 
   disconnectRealtime: () => {
     const { eventSource } = get();
@@ -128,10 +128,10 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     try {
       await notificationsApi.markAsRead(id);
       set((state) => ({
-        notifications: state.notifications.map(n => 
+        notifications: state.notifications.map((n) =>
           n.id === id ? { ...n, is_read: true } : n
         ),
-        unreadCount: Math.max(0, state.unreadCount - 1)
+        unreadCount: Math.max(0, state.unreadCount - 1),
       }));
     } catch (err) {
       console.error('Failed to mark as read', err);
@@ -142,11 +142,11 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     try {
       await notificationsApi.markAllAsRead();
       set((state) => ({
-        notifications: state.notifications.map(n => ({ ...n, is_read: true })),
-        unreadCount: 0
+        notifications: state.notifications.map((n) => ({ ...n, is_read: true })),
+        unreadCount: 0,
       }));
     } catch (err) {
       console.error('Failed to mark all as read', err);
     }
-  }
+  },
 }));
