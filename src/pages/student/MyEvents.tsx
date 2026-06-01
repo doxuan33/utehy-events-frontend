@@ -100,7 +100,6 @@ export const MyEvents = () => {
   const getDerivedStatus = (reg: Registration) => {
     const endTime = new Date(reg.event?.end_time || reg.event?.start_time || reg.created_at);
     
-    // Nếu sự kiện đã kết thúc mà trạng thái vẫn là REGISTERED (chưa điểm danh) => Vắng mặt
     if (reg.status === 'REGISTERED' && now >= endTime) {
       return 'ABSENT';
     }
@@ -132,7 +131,6 @@ export const MyEvents = () => {
         return { variant: 'secondary' as const, label: 'Đã hủy', className: 'bg-gray-50 text-gray-700 border border-gray-200' };
       case 'REGISTERED':
       default:
-        // Đổi sang màu vàng cho trạng thái chờ tham gia (sự kiện sắp tới)
         return { variant: 'warning' as const, label: 'Chờ tham gia', className: 'bg-yellow-50 text-yellow-700 border border-yellow-200' };
     }
   };
@@ -152,12 +150,11 @@ export const MyEvents = () => {
   const eventPropGetter = (event: any) => {
     const status = getDerivedStatus(event.resource);
     
-    if (status === 'ATTENDED') return { style: { backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px' } }; // green-500
-    if (status === 'ABSENT') return { style: { backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px' } }; // red-500
-    if (status === 'CANCELLED') return { style: { backgroundColor: '#9ca3af', color: 'white', border: 'none', borderRadius: '4px' } }; // gray-400
+    if (status === 'ATTENDED') return { style: { backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px' } }; 
+    if (status === 'ABSENT') return { style: { backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px' } }; 
+    if (status === 'CANCELLED') return { style: { backgroundColor: '#9ca3af', color: 'white', border: 'none', borderRadius: '4px' } }; 
     
-    // Sự kiện sắp tới (REGISTERED) -> Màu vàng
-    return { style: { backgroundColor: '#eab308', color: 'white', border: 'none', borderRadius: '4px' } }; // yellow-500
+    return { style: { backgroundColor: '#eab308', color: 'white', border: 'none', borderRadius: '4px' } }; 
   };
 
   const displayedEvents = activeTab === 'upcoming' ? upcomingEvents : pastEvents;
@@ -165,22 +162,83 @@ export const MyEvents = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-24 px-3 sm:px-6 pt-2 sm:pt-4">
       
+      {/* SỬA LẠI TOÀN BỘ CSS CHO LỊCH TRÌNH (CALENDAR) TẠI ĐÂY */}
       <style dangerouslySetInnerHTML={{__html: `
         /* Custom UI for React Big Calendar */
         .rbc-today { background-color: #ecfdf5 !important; }
-        .rbc-event { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .rbc-btn-group button.rbc-active { background-color: #10b981 !important; color: white !important; border-color: #10b981 !important; box-shadow: none !important; }
-        .rbc-btn-group button:hover:not(.rbc-active) { background-color: #d1fae5 !important; color: #047857 !important; }
+        .rbc-event { box-shadow: 0 1px 2px rgba(0,0,0,0.05); border-radius: 4px; }
         
-        /* Mobile specific fixes */
+        /* Cải thiện thanh Toolbar (Menu ngày tháng) */
+        .rbc-toolbar { 
+          display: flex; 
+          flex-wrap: wrap; 
+          align-items: center; 
+          justify-content: space-between; 
+          margin-bottom: 1.5rem !important; 
+          gap: 1rem;
+        }
+        .rbc-toolbar-label { 
+          font-weight: 800 !important; 
+          font-size: 1.125rem !important; 
+          color: #065f46 !important; 
+          text-transform: capitalize;
+        }
+        
+        /* Style cho các nút bấm */
+        .rbc-btn-group { display: flex; }
+        .rbc-btn-group button { 
+          color: #4b5563 !important; 
+          font-weight: 600 !important; 
+          border: 1px solid #e5e7eb !important; 
+          padding: 8px 16px !important; 
+          transition: all 0.2s;
+          background: white !important;
+        }
+        .rbc-btn-group button:hover { background-color: #f3f4f6 !important; color: #111827 !important; }
+        
+        /* Style nút đang Active */
+        .rbc-btn-group button.rbc-active { 
+          background-color: #10b981 !important; 
+          color: white !important; 
+          border-color: #10b981 !important; 
+          box-shadow: 0 2px 4px rgba(16,185,129,0.2) !important; 
+        }
+        .rbc-btn-group button.rbc-active:hover { background-color: #059669 !important; }
+        
+        /* Bo góc mượt mà cho Group Buttons */
+        .rbc-btn-group button:first-child { border-top-left-radius: 8px !important; border-bottom-left-radius: 8px !important; }
+        .rbc-btn-group button:last-child { border-top-right-radius: 8px !important; border-bottom-right-radius: 8px !important; }
+        .rbc-btn-group button:not(:first-child) { margin-left: -1px; }
+
+        /* Mobile specific fixes (Responsive cho điện thoại) */
         @media (max-width: 768px) {
-          .rbc-toolbar { flex-direction: column; gap: 8px; margin-bottom: 12px; }
-          .rbc-toolbar .rbc-btn-group { display: flex; width: 100%; justify-content: center; }
-          .rbc-toolbar button { padding: 6px 12px; font-size: 13px; flex: 1; }
-          .rbc-toolbar .rbc-toolbar-label { font-size: 16px; font-weight: 800; color: #065f46; }
+          .rbc-toolbar { 
+            flex-direction: column; 
+            gap: 12px; 
+          }
+          /* Đưa label (Tháng/Năm) lên trên cùng trên mobile */
+          .rbc-toolbar .rbc-toolbar-label { 
+            order: -1; 
+            font-size: 1.25rem !important; 
+          }
+          .rbc-toolbar .rbc-btn-group { 
+            width: 100%; 
+            display: flex; 
+          }
+          .rbc-toolbar button { 
+            flex: 1; 
+            padding: 8px 4px !important; 
+            font-size: 12px !important; 
+          }
+          /* Agenda view tables */
           .rbc-agenda-view table.rbc-agenda-table { font-size: 13px; }
           .rbc-agenda-date-cell { white-space: nowrap; font-weight: bold; color: #047857; }
-          .rbc-btn-group:nth-child(3) button:not(:last-child) { display: none; }
+          
+          /* Chỉ hiện nút Lịch trình trên mobile ở group 2 */
+          .rbc-toolbar > div:nth-child(3) button:not(:last-child) { display: none !important; }
+          .rbc-toolbar > div:nth-child(3) button:last-child { 
+            border-radius: 8px !important; /* Bo tròn đều vì chỉ còn 1 nút */
+          }
         }
       `}} />
 
@@ -259,13 +317,13 @@ export const MyEvents = () => {
         <motion.div 
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-[24px] shadow-sm border border-green-100 p-3 sm:p-6 h-[500px] sm:h-[600px] flex flex-col overflow-hidden"
+          className="bg-white rounded-[24px] shadow-sm border border-green-100 p-4 sm:p-6 h-[550px] sm:h-[650px] flex flex-col overflow-hidden"
         >
           {/* Chú thích màu lịch trình */}
-          <div className="flex flex-wrap gap-3 sm:gap-4 mb-4 justify-end text-[11px] sm:text-xs font-semibold text-gray-600">
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-[#eab308]"></div> Chờ tham gia</div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-[#10b981]"></div> Đã tham gia</div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-[#ef4444]"></div> Vắng mặt</div>
+          <div className="flex flex-wrap gap-4 mb-6 justify-center sm:justify-end text-[11px] sm:text-xs font-semibold text-gray-600 bg-gray-50 py-2 px-4 rounded-xl border border-gray-100 w-full sm:w-auto self-end">
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-[#eab308]"></div> Chờ tham gia</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-[#10b981]"></div> Đã tham gia</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-[#ef4444]"></div> Vắng mặt</div>
           </div>
 
           <div className="flex-1 h-full w-full">
@@ -354,7 +412,6 @@ export const MyEvents = () => {
                 const event = reg.event;
                 const eventDate = new Date(event?.start_time || reg.created_at);
                 
-                // Lấy trạng thái đã được tính toán lại (Tự động vắng mặt nếu quá hạn)
                 const derivedStatus = getDerivedStatus(reg);
                 const statusBadge = getStatusBadge(derivedStatus);
                 const points = event?.training_points || 0;
