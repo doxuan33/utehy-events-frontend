@@ -302,9 +302,10 @@ export const EventManagement = () => {
     setConfirmDialog({
       isOpen: true, title: 'Kết thúc điểm danh', message: 'Bạn có chắc chắn muốn kết thúc điểm danh? Thao tác này sẽ đóng đăng ký và cập nhật vắng mặt cho những người chưa điểm danh.', type: 'warning',
       onConfirm: async () => {
+        if (!page) return;
         try {
           setIsActionLoading(eventId);
-          await eventsApi.closeEvent(eventId);
+          await eventsApi.closeEvent(eventId, page.id);
           setEvents(prev => prev.map(e => e.id === eventId ? { ...e, status: 'CLOSED' } : e));
           toast.success('Đã kết thúc điểm danh và đóng sự kiện.');
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
