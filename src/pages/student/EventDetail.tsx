@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { motion } from 'framer-motion'; 
 import { 
   Calendar, MapPin, Users, Clock, ArrowLeft, Share2, 
-  Info, QrCode, MessageCircle, Award, Sparkles, Building2
+  Info, QrCode, MessageCircle, Award, Sparkles, Building2, AlertTriangle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -290,6 +290,16 @@ export const EventDetail = () => {
                       Điểm danh QR
                     </Button>
                   </Link>
+                )}
+
+                {event.is_penalty_active && (
+                  <div className="mb-4 flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                    <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                      <span className="font-bold block mb-0.5">⚠️ Lưu ý: Áp dụng trừ điểm</span>
+                      Việc đăng ký nhưng vắng mặt không phép sẽ khiến bạn bị trừ <span className="font-black text-amber-900">{event.penalty_points} điểm</span> rèn luyện.
+                    </p>
+                  </div>
                 )}
 
                 <Button

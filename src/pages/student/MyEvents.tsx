@@ -65,12 +65,11 @@ export const MyEvents = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Detect mobile for better Calendar default view
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       if (mobile && calendarView === Views.MONTH) {
-        setCalendarView(Views.AGENDA as CalendarViewMode); // Force agenda view on mobile
+        setCalendarView(Views.AGENDA as CalendarViewMode);
       }
     };
     
@@ -96,21 +95,32 @@ export const MyEvents = () => {
   }, []);
 
   const now = new Date();
+
+  // Hàm tính toán lại trạng thái dựa vào thời gian thực tế
+  const getDerivedStatus = (reg: Registration) => {
+    const endTime = new Date(reg.event?.end_time || reg.event?.start_time || reg.created_at);
+    
+    // Nếu sự kiện đã kết thúc mà trạng thái vẫn là REGISTERED (chưa điểm danh) => Vắng mặt
+    if (reg.status === 'REGISTERED' && now >= endTime) {
+      return 'ABSENT';
+    }
+    return reg.status;
+  };
   
   const upcomingEvents = useMemo(() => registrations.filter(reg => {
     const endTime = new Date(reg.event?.end_time || reg.event?.start_time || reg.created_at);
     return now < endTime; 
-  }), [registrations]);
+  }), [registrations, now]);
 
   const pastEvents = useMemo(() => registrations.filter(reg => {
     const endTime = new Date(reg.event?.end_time || reg.event?.start_time || reg.created_at);
     return now >= endTime; 
-  }), [registrations]);
+  }), [registrations, now]);
 
   const totalEvents = registrations.length;
   const totalPoints = useMemo(() => registrations
-    .filter(r => r.status === 'ATTENDED')
-    .reduce((sum, r) => sum + (r.event?.training_points || 0), 0), [registrations]);
+    .filter(r => getDerivedStatus(r) === 'ATTENDED')
+    .reduce((sum, r) => sum + (r.event?.training_points || 0), 0), [registrations, now]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -122,7 +132,8 @@ export const MyEvents = () => {
         return { variant: 'secondary' as const, label: 'Đã hủy', className: 'bg-gray-50 text-gray-700 border border-gray-200' };
       case 'REGISTERED':
       default:
-        return { variant: 'primary' as const, label: 'Chờ duyệt', className: 'bg-teal-50 text-teal-700 border border-teal-200' };
+        // Đổi sang màu vàng cho trạng thái chờ tham gia (sự kiện sắp tới)
+        return { variant: 'warning' as const, label: 'Chờ tham gia', className: 'bg-yellow-50 text-yellow-700 border border-yellow-200' };
     }
   };
 
@@ -134,15 +145,19 @@ export const MyEvents = () => {
     id: reg.id,
     title: reg.event?.title || 'Sự kiện UTEHY',
     start: new Date(reg.event?.start_time),
-    end: new Date(reg.event?.end_time || reg.event?.start_time), // Phải có end để Agenda hiển thị
+    end: new Date(reg.event?.end_time || reg.event?.start_time),
     resource: reg,
   })), [registrations]);
 
   const eventPropGetter = (event: any) => {
-    const status = event.resource?.status;
+    const status = getDerivedStatus(event.resource);
+    
     if (status === 'ATTENDED') return { style: { backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px' } }; // green-500
     if (status === 'ABSENT') return { style: { backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px' } }; // red-500
-    return { style: { backgroundColor: '#14b8a6', color: 'white', border: 'none', borderRadius: '4px' } }; // teal-500
+    if (status === 'CANCELLED') return { style: { backgroundColor: '#9ca3af', color: 'white', border: 'none', borderRadius: '4px' } }; // gray-400
+    
+    // Sự kiện sắp tới (REGISTERED) -> Màu vàng
+    return { style: { backgroundColor: '#eab308', color: 'white', border: 'none', borderRadius: '4px' } }; // yellow-500
   };
 
   const displayedEvents = activeTab === 'upcoming' ? upcomingEvents : pastEvents;
@@ -150,9 +165,8 @@ export const MyEvents = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-24 px-3 sm:px-6 pt-2 sm:pt-4">
       
-      {/* CSS fix Lịch trên Mobile */}
       <style dangerouslySetInnerHTML={{__html: `
-        /* Custom UI for React Big Calendar to match Green Theme */
+        /* Custom UI for React Big Calendar */
         .rbc-today { background-color: #ecfdf5 !important; }
         .rbc-event { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .rbc-btn-group button.rbc-active { background-color: #10b981 !important; color: white !important; border-color: #10b981 !important; box-shadow: none !important; }
@@ -166,7 +180,6 @@ export const MyEvents = () => {
           .rbc-toolbar .rbc-toolbar-label { font-size: 16px; font-weight: 800; color: #065f46; }
           .rbc-agenda-view table.rbc-agenda-table { font-size: 13px; }
           .rbc-agenda-date-cell { white-space: nowrap; font-weight: bold; color: #047857; }
-          /* Ẩn bớt view month/week trên mobile để bắt user xài Agenda cho khỏe */
           .rbc-btn-group:nth-child(3) button:not(:last-child) { display: none; }
         }
       `}} />
@@ -213,7 +226,7 @@ export const MyEvents = () => {
         </div>
       </motion.div>
 
-      {/* View Toggle (List vs Calendar) */}
+      {/* View Toggle */}
       <div className="bg-white p-1.5 rounded-2xl flex relative w-full sm:w-64 border border-green-100 shadow-sm">
         <button
           onClick={() => setViewMode('list')}
@@ -242,13 +255,19 @@ export const MyEvents = () => {
           ))}
         </div>
       ) : viewMode === 'calendar' ? (
-        
         /* ================= CALENDAR VIEW ================= */
         <motion.div 
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           className="bg-white rounded-[24px] shadow-sm border border-green-100 p-3 sm:p-6 h-[500px] sm:h-[600px] flex flex-col overflow-hidden"
         >
+          {/* Chú thích màu lịch trình */}
+          <div className="flex flex-wrap gap-3 sm:gap-4 mb-4 justify-end text-[11px] sm:text-xs font-semibold text-gray-600">
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-[#eab308]"></div> Chờ tham gia</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-[#10b981]"></div> Đã tham gia</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-[#ef4444]"></div> Vắng mặt</div>
+          </div>
+
           <div className="flex-1 h-full w-full">
             <BigCalendar
               localizer={localizer}
@@ -282,7 +301,7 @@ export const MyEvents = () => {
           </div>
         </motion.div>
       ) : (
-        /* ================= LIST VIEW (TICKETS) ================= */
+        /* ================= LIST VIEW ================= */
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -334,7 +353,10 @@ export const MyEvents = () => {
               {displayedEvents.map((reg) => {
                 const event = reg.event;
                 const eventDate = new Date(event?.start_time || reg.created_at);
-                const statusBadge = getStatusBadge(reg.status);
+                
+                // Lấy trạng thái đã được tính toán lại (Tự động vắng mặt nếu quá hạn)
+                const derivedStatus = getDerivedStatus(reg);
+                const statusBadge = getStatusBadge(derivedStatus);
                 const points = event?.training_points || 0;
                 
                 const endTime = new Date(event?.end_time || event?.start_time || reg.created_at);
@@ -349,9 +371,7 @@ export const MyEvents = () => {
                     exit={{ opacity: 0, scale: 0.95 }}
                     className={`bg-white rounded-2xl sm:rounded-3xl border border-green-100 overflow-hidden shadow-sm hover:shadow-md transition-all relative group ${!isUpcoming ? 'opacity-80' : ''}`}
                   >
-                    {/* --- CẤU TRÚC VÉ (RESPONSIVE FLEXBOX) --- */}
                     <div className="flex flex-row relative min-h-[120px] sm:min-h-[140px]">
-                      
                       {/* Trái - Thông tin sự kiện */}
                       <div className="flex-1 p-4 sm:p-6 pr-5 sm:pr-8 flex flex-col justify-center">
                         <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 line-clamp-2 leading-snug group-hover:text-green-700 transition-colors">
@@ -382,27 +402,26 @@ export const MyEvents = () => {
                         </div>
                       </div>
 
-                      {/* Phải - Hành động & Nét đứt (Tear Line) */}
-                      <div className="w-[90px] sm:w-[140px] p-3 sm:p-5 bg-gradient-to-b from-green-50/50 to-teal-50/50 flex flex-col items-center justify-center space-y-3 sm:space-y-4 shrink-0 border-l-2 border-dashed border-green-200 relative">
+                      {/* Phải - Hành động & Nét đứt */}
+                      <div className="w-[90px] sm:w-[140px] p-3 sm:p-5 bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col items-center justify-center space-y-3 sm:space-y-4 shrink-0 border-l-2 border-dashed border-gray-200 relative">
                         
-                        {/* 2 Lỗ tròn cắt vé */}
-                        <div className="absolute -top-[14px] -left-[14px] w-7 h-7 bg-white rounded-full border-b border-green-100"></div>
-                        <div className="absolute -bottom-[14px] -left-[14px] w-7 h-7 bg-white rounded-full border-t border-green-100"></div>
+                        <div className="absolute -top-[14px] -left-[14px] w-7 h-7 bg-white rounded-full border-b border-gray-200"></div>
+                        <div className="absolute -bottom-[14px] -left-[14px] w-7 h-7 bg-white rounded-full border-t border-gray-200"></div>
 
                         {event && (
                           <Badge
                             variant={statusBadge.variant}
-                            className={`px-2 sm:px-3 py-1 text-[9px] sm:text-xs font-bold text-center w-full justify-center ${statusBadge.className}`}
+                            className={`px-2 sm:px-3 py-1.5 text-[9px] sm:text-xs font-bold text-center w-full justify-center shadow-sm ${statusBadge.className}`}
                           >
                             {statusBadge.label}
                           </Badge>
                         )}
 
-                        {event && isUpcoming && reg.status === 'REGISTERED' && (
+                        {event && isUpcoming && derivedStatus === 'REGISTERED' && (
                           <Button
                             size="sm"
                             onClick={() => setSelectedQr(getQrValue(reg))}
-                            className="w-full rounded-xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white shadow-sm h-8 sm:h-10 px-0 flex items-center justify-center transition-transform hover:scale-105 border-none"
+                            className="w-full rounded-xl bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white shadow-sm h-8 sm:h-10 px-0 flex items-center justify-center transition-transform hover:scale-105 border-none"
                           >
                             <QrCode className="h-4 w-4 sm:mr-1.5" />
                             <span className="hidden sm:inline text-xs font-bold">Mã QR</span>
@@ -411,7 +430,7 @@ export const MyEvents = () => {
 
                         {event && (
                           <Link to={`/events/${event.id}`} className="w-full">
-                            <Button variant="ghost" size="sm" className="w-full h-8 sm:h-10 rounded-xl text-teal-700 font-bold text-[10px] sm:text-xs bg-white border border-teal-100 hover:bg-teal-50 px-0 transition-colors shadow-sm">
+                            <Button variant="ghost" size="sm" className="w-full h-8 sm:h-10 rounded-xl text-gray-600 font-bold text-[10px] sm:text-xs bg-white border border-gray-200 hover:bg-gray-50 px-0 transition-colors shadow-sm">
                               Chi tiết
                             </Button>
                           </Link>
@@ -457,7 +476,7 @@ export const MyEvents = () => {
               </div>
 
               <div className="flex justify-center mb-6">
-                <div className="p-4 sm:p-5 bg-white rounded-[24px] shadow-[0_0_40px_rgba(16,185,129,0.15)] border-2 border-green-100">
+                <div className="p-4 sm:p-5 bg-white rounded-[24px] shadow-[0_0_40px_rgba(234,179,8,0.2)] border-2 border-yellow-100">
                   <QRCodeSVG value={selectedQr} size={220} className="w-full max-w-[220px] h-auto" />
                 </div>
               </div>
@@ -471,7 +490,7 @@ export const MyEvents = () => {
 
               <Button
                 onClick={() => setSelectedQr(null)}
-                className="w-full rounded-2xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white py-3.5 sm:py-4 font-bold text-sm sm:text-base shadow-sm border-none"
+                className="w-full rounded-2xl bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white py-3.5 sm:py-4 font-bold text-sm sm:text-base shadow-sm border-none"
               >
                 Đóng
               </Button>

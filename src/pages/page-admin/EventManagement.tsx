@@ -221,6 +221,7 @@ export const EventManagement = () => {
     title: '', description: '', category_id: '', location: '', latitude: '', longitude: '',
     start_time: '', end_time: '', registration_deadline: '', max_participants: '', training_points: '', banner_url: '',
     is_global: false, registration_type: 'NORMAL' as 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY',
+    is_penalty_active: false, penalty_points: '5',
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
@@ -303,7 +304,7 @@ export const EventManagement = () => {
       onConfirm: async () => {
         try {
           setIsActionLoading(eventId);
-          await checkinApi.endCheckin(eventId);
+          await eventsApi.closeEvent(eventId);
           setEvents(prev => prev.map(e => e.id === eventId ? { ...e, status: 'CLOSED' } : e));
           toast.success('Đã kết thúc điểm danh và đóng sự kiện.');
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
@@ -332,7 +333,7 @@ export const EventManagement = () => {
 
   const handleOpenCreateModal = () => {
     setEditingEventId(null);
-    setFormData({ title: '', description: '', category_id: String(categories[0]?.id || ''), location: '', latitude: '', longitude: '', start_time: '', end_time: '', registration_deadline: '', max_participants: '', training_points: '', banner_url: '', is_global: false, registration_type: 'NORMAL' });
+    setFormData({ title: '', description: '', category_id: String(categories[0]?.id || ''), location: '', latitude: '', longitude: '', start_time: '', end_time: '', registration_deadline: '', max_participants: '', training_points: '', banner_url: '', is_global: false, registration_type: 'NORMAL', is_penalty_active: false, penalty_points: '5' });
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImageFile(null); setImagePreview(''); setIsModalOpen(true);
   };
@@ -343,7 +344,8 @@ export const EventManagement = () => {
       title: event.title || '', description: event.description || '', category_id: event.category_id?.toString() || '', location: event.location || '', latitude: event.latitude?.toString() || '', longitude: event.longitude?.toString() || '',
       start_time: event.start_time ? format(new Date(event.start_time), "yyyy-MM-dd'T'HH:mm") : '', end_time: event.end_time ? format(new Date(event.end_time), "yyyy-MM-dd'T'HH:mm") : '', registration_deadline: event.registration_deadline ? format(new Date(event.registration_deadline), "yyyy-MM-dd'T'HH:mm") : '',
       max_participants: (event.max_slots || '').toString(), training_points: (event.training_points || 0).toString(), banner_url: event.banner_url || '',
-      is_global: event.is_global ?? false, registration_type: event.registration_type || 'NORMAL'
+      is_global: event.is_global ?? false, registration_type: event.registration_type || 'NORMAL',
+      is_penalty_active: event.is_penalty_active ?? false, penalty_points: (event.penalty_points ?? 5).toString(),
     });
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImageFile(null); setImagePreview(''); setIsModalOpen(true);
@@ -415,12 +417,14 @@ export const EventManagement = () => {
       let endTime = formData.end_time ? new Date(formData.end_time) : new Date(startTime.getTime() + 3 * 60 * 60 * 1000);
       const registrationDeadline = formData.registration_deadline ? new Date(formData.registration_deadline) : new Date(startTime.getTime() - 24 * 60 * 60 * 1000);
 
+      const penaltyPoints = formData.penalty_points ? parseInt(formData.penalty_points.toString(), 10) : 0;
       const payload: any = {
         page_id: page.id, title: formData.title.trim(), description: formData.description.trim(),
         category_id: categoryId, location: formData.location.trim(), start_time: startTime.toISOString(),
         end_time: endTime.toISOString(), registration_deadline: registrationDeadline.toISOString(),
         max_slots: maxSlots, training_points: trainingPoints, checkin_radius_m: 200, requires_approval: false,
         banner_url: bannerUrl || undefined, is_global: formData.is_global, registration_type: formData.registration_type,
+        is_penalty_active: formData.is_penalty_active, penalty_points: penaltyPoints,
       };
       if (latitude !== null && !isNaN(latitude)) payload.latitude = latitude;
       if (longitude !== null && !isNaN(longitude)) payload.longitude = longitude;
@@ -695,6 +699,42 @@ export const EventManagement = () => {
                           <option value="CHECKIN_ONLY">Chỉ Check-in, không cần đăng ký</option>
                         </select>
                       </div>
+                    </div>
+
+                    {/* Phạt điểm khi vắng mặt */}
+                    <div className="border-t border-green-50 pt-4 space-y-3">
+                      <div className="flex items-center justify-between p-4 bg-orange-50/50 rounded-xl border border-orange-100">
+                        <div>
+                          <p className="text-sm font-bold text-orange-800">Áp dụng trừ điểm khi vắng mặt</p>
+                          <p className="text-xs text-orange-600/70 mt-0.5 font-medium">Sinh viên đăng ký nhưng không tham gia sẽ bị trừ điểm rèn luyện</p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={formData.is_penalty_active}
+                          onClick={() => setFormData(prev => ({ ...prev, is_penalty_active: !prev.is_penalty_active }))}
+                          className={`relative w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 flex-shrink-0 ml-4 ${formData.is_penalty_active ? 'bg-orange-500' : 'bg-gray-300'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${formData.is_penalty_active ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </button>
+                      </div>
+
+                      {formData.is_penalty_active && (
+                        <div className="flex items-center gap-3 p-4 bg-red-50/50 rounded-xl border border-red-100">
+                          <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
+                          <div className="flex-1">
+                            <label className="block text-sm font-bold text-red-700 mb-1.5">Số điểm bị trừ</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={formData.penalty_points}
+                              onChange={(e) => setFormData(prev => ({ ...prev, penalty_points: e.target.value }))}
+                              className="w-full px-4 py-2.5 bg-white border border-red-200 rounded-lg text-sm font-bold text-red-700 focus:ring-2 focus:ring-red-400 shadow-sm outline-none"
+                              placeholder="5"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

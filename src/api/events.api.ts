@@ -82,4 +82,7 @@ delete: (id: string, page_id: string) =>
 
   importMandatoryStudents: (eventId: string | number, studentIds: string[]) =>
      apiClient.post(`/events/${eventId}/import-mandatory`, { studentIds }),
+
+  closeEvent: (id: string) =>
+    apiClient.post(`/events/${id}/close`),
 };
