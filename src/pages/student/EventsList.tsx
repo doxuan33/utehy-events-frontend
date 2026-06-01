@@ -28,13 +28,23 @@ export const EventsList = () => {
         ]);
         
         const eventsResponse = eventsRes.data.data;
+        let rawEvents = [];
+        
         if (eventsResponse && typeof eventsResponse === 'object' && Array.isArray(eventsResponse.data)) {
-          setEvents(eventsResponse.data);
+          rawEvents = eventsResponse.data;
         } else if (Array.isArray(eventsResponse)) {
-          setEvents(eventsResponse);
-        } else {
-          setEvents([]);
+          rawEvents = eventsResponse;
         }
+
+        // THÊM LOGIC SẮP XẾP TẠI ĐÂY: Mới nhất lên trên
+        const sortedEvents = rawEvents.sort((a, b) => {
+          // Ưu tiên sắp xếp theo ngày tạo (created_at), nếu không có thì dùng ngày bắt đầu (start_time)
+          const dateA = new Date(a.created_at || a.start_time).getTime();
+          const dateB = new Date(b.created_at || b.start_time).getTime();
+          return dateB - dateA; // Trừ ngược lại để xếp giảm dần (Mới nhất -> Cũ nhất)
+        });
+
+        setEvents(sortedEvents);
         
         setCurrentPage(1); // Reset page on filter/search change
 
@@ -61,7 +71,6 @@ export const EventsList = () => {
   }, [events, safeCurrentPage]);
 
   return (
-    // [FIX LAYOUT]: Đổi từ max-w-7xl thành max-w-[850px] để thu nhỏ vùng Center lại (60% màn hình)
     <div className="space-y-6 pb-20 md:pb-0 w-full max-w-[800px] mx-auto">
       
       {/* Header Section */}
@@ -120,7 +129,6 @@ export const EventsList = () => {
       </div>
 
       {isLoading ? (
-        // [FIX LAYOUT]: Giảm từ 3 cột xuống 2 cột cho khung Center hẹp
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="bg-green-50/50 rounded-2xl h-[320px] animate-pulse border border-green-100" />

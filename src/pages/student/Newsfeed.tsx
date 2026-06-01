@@ -20,6 +20,7 @@ export const Newsfeed = () => {
   const [hasMoreEvents, setHasMoreEvents] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | 'posts' | 'events'>('all');
 
+  // HÀM 1: Fetch dữ liệu lần đầu & Load More
   const fetchFeed = useCallback(async (isLoadMore = false) => {
     try {
       if (isLoadMore) setIsFetchingMore(true);
@@ -28,8 +29,6 @@ export const Newsfeed = () => {
         setError(null);
       }
 
-      // [TỐI ƯU N+1 / WATERFALL]: Gom 2 Request chạy SONG SONG
-      // Giúp giảm một nửa thời gian chờ API
       const promises: any[] = [
         postsApi.getNewsfeed({
           cursor: isLoadMore ? postCursor || undefined : undefined,
@@ -37,7 +36,6 @@ export const Newsfeed = () => {
         })
       ];
 
-      // Chỉ thêm API Event nếu còn dữ liệu để kéo
       if (hasMoreEvents || !isLoadMore) {
         promises.push(
           eventsApi.getAll({
@@ -47,7 +45,7 @@ export const Newsfeed = () => {
           })
         );
       } else {
-        promises.push(Promise.resolve(null)); // Placeholder để index không bị sai
+        promises.push(Promise.resolve(null));
       }
 
       const [postsRes, eventsRes] = await Promise.all(promises);
@@ -87,8 +85,52 @@ export const Newsfeed = () => {
     }
   }, [postCursor, eventPage, hasMoreEvents]);
 
+  // HÀM 2: CẬP NHẬT NGẦM TỰ ĐỘNG (BACKGROUND POLLING)
+  const fetchLatestBackground = async () => {
+    try {
+      // Chỉ lấy trang 1 (10 bài mới nhất)
+      const [postsRes, eventsRes] = await Promise.all([
+        postsApi.getNewsfeed({ limit: 10 }),
+        eventsApi.getAll({ page: 1, limit: 10, status: 'APPROVED' })
+      ]);
+
+      const newPosts = (postsRes.data?.data?.data || []).map((p: any) => ({ ...p, feedType: 'post' }));
+      const newEvents = (eventsRes.data?.data?.data || []).map((e: any) => ({ ...e, feedType: 'event' }));
+
+      const combinedNew = [...newPosts, ...newEvents].sort((a, b) =>
+        new Date(b.created_at || b.start_time).getTime() - new Date(a.created_at || a.start_time).getTime()
+      );
+
+      setFeedItems(prevItems => {
+        // Tạo tập hợp ID của các bài đang hiển thị để kiểm tra trùng lặp nhanh
+        const existingIds = new Set(prevItems.map(item => `${item.feedType}-${item.id}`));
+        
+        // Lọc ra NHỮNG BÀI THỰC SỰ MỚI
+        const trulyNewItems = combinedNew.filter(item => !existingIds.has(`${item.feedType}-${item.id}`));
+
+        if (trulyNewItems.length > 0) {
+          // Chèn bài mới lên đầu mảng cũ
+          return [...trulyNewItems, ...prevItems];
+        }
+        return prevItems;
+      });
+    } catch (error) {
+      // Chạy ngầm nên nếu lỗi mạng cứ im lặng bỏ qua, đợi chu kỳ sau
+      console.error("Silent background update failed", error);
+    }
+  };
+
   useEffect(() => {
+    // 1. Chạy lần đầu tiên khi mở trang
     fetchFeed();
+
+    // 2. Setup Interval tự động cập nhật ngầm mỗi 30 giây (30000ms)
+    const intervalId = setInterval(() => {
+      fetchLatestBackground();
+    }, 30000);
+
+    // Dọn dẹp Interval khi rời khỏi trang
+    return () => clearInterval(intervalId);
   }, [fetchFeed]);
 
   const handleLoadMore = () => {
@@ -193,10 +235,11 @@ export const Newsfeed = () => {
             {filteredItems.map((item) => (
               <motion.div
                 key={`${item.feedType}-${item.id}`}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                layout // Thuộc tính này giúp các thẻ cũ trượt mượt mà xuống dưới khi thẻ mới đẩy lên đầu
+                initial={{ opacity: 0, y: -30, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
                 className="transform-gpu"
               >
                 {item.feedType === 'post' ? (
@@ -207,6 +250,7 @@ export const Newsfeed = () => {
               </motion.div>
             ))}
           </AnimatePresence>
+          
           {(postCursor || hasMoreEvents) && (
             <div className="flex justify-center pt-6 pb-12">
               <button
@@ -220,7 +264,7 @@ export const Newsfeed = () => {
                     <span>Đang tải thêm...</span>
                   </>
                 ) : (
-                  <span>Tải thêm tin mới</span>
+                  <span>Tải thêm tin cũ hơn</span>
                 )}
               </button>
             </div>

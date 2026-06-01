@@ -51,6 +51,8 @@ create: (data: {
     is_global?: boolean;
     registration_type?: 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY';
     banner_url?: string;
+    is_penalty_active?: boolean;
+    penalty_points?: number;
   }) => apiClient.post('/events', data),
 
   update: (id: string, data: {
@@ -69,6 +71,8 @@ create: (data: {
     is_global?: boolean;
     registration_type?: 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY';
     banner_url?: string;
+    is_penalty_active?: boolean;
+    penalty_points?: number;
   }) => apiClient.patch(`/events/${id}`, data),
 
   approve: (id: string) =>

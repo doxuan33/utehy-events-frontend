@@ -144,8 +144,11 @@ export const Dashboard = () => {
 
       const upcoming = events
         .filter((e: any) => {
-          const eventDate = new Date(e.start_time);
-          return !isNaN(eventDate.getTime()) && eventDate > new Date();
+          // Dùng end_time (nếu có) hoặc start_time để check xem sự kiện đã thực sự qua chưa
+          const endTime = new Date(e.end_time || e.start_time);
+          const isValidDate = !isNaN(endTime.getTime());
+          // Hiển thị nếu chưa kết thúc VÀ không bị đóng/từ chối
+          return isValidDate && endTime > new Date() && e.status !== 'CLOSED' && e.status !== 'REJECTED';
         })
         .sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
         .slice(0, 5);
