@@ -21,25 +21,25 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
 
 interface Event {
-   id: string;
-   title: string;
-   description: string;
-   category_id: number;
-   location: string;
-   latitude?: string;
-   longitude?: string;
-   start_time: string;
-   end_time: string;
-   registration_deadline?: string;
-   max_slots?: number;
-   training_points?: number;
-   banner_url?: string;
-   status: string;
-   created_at?: string;
-   _count?: { registrations: number };
-   is_global?: boolean;
-   registration_type?: 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY';
- }
+  id: string;
+  title: string;
+  description: string;
+  category_id: number;
+  location: string;
+  latitude?: string;
+  longitude?: string;
+  start_time: string;
+  end_time: string;
+  registration_deadline?: string;
+  max_slots?: number;
+  training_points?: number;
+  banner_url?: string;
+  status: string;
+  created_at?: string;
+  _count?: { registrations: number };
+  is_global?: boolean;
+  registration_type?: 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY';
+}
 
 interface Category {
   id: number;
@@ -200,14 +200,14 @@ export const EventManagement = () => {
 
   // [TÍNH NĂNG MỚI] Phân trang
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6; 
+  const itemsPerPage = 6;
 
   // Modals & Dialogs
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, type: 'danger' as any });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => { }, type: 'danger' as any });
 
   // AI Assistant states
   const [aiPrompt, setAiPrompt] = useState('');
@@ -264,10 +264,10 @@ export const EventManagement = () => {
       }
       if (!managedPage) { setIsLoading(false); return; }
       setPage(managedPage);
-      
+
       const eventsRes = await eventsApi.getAll({ page_id: managedPage.id, limit: 100 });
       const rawEvents = eventsRes.data.data.data || eventsRes.data.data || [];
-      
+
       const now = new Date().getTime();
       const processedEvents = rawEvents.map((event: any) => {
         if (event.end_time && new Date(event.end_time).getTime() < now && event.status !== 'CLOSED') {
@@ -278,7 +278,7 @@ export const EventManagement = () => {
 
       const sortedEvents = processedEvents.sort((a: any, b: any) => new Date(b.created_at || b.start_time || b.id).getTime() - new Date(a.created_at || a.start_time || a.id).getTime());
       setEvents(sortedEvents);
-      
+
       const catRes = await eventsApi.getCategories();
       setCategories(catRes.data.data);
     } catch (err) {
@@ -294,7 +294,7 @@ export const EventManagement = () => {
       await checkinApi.startCheckin(eventId);
       setEvents(prev => prev.map(e => e.id === eventId ? { ...e, status: 'ONGOING' } : e));
       navigate(`/page-admin/events/${eventId}/qr-display`);
-    } catch (err: any) { toast.error(err.response?.data?.message || 'Không thể bắt đầu điểm danh.'); } 
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Không thể bắt đầu điểm danh.'); }
     finally { setIsActionLoading(false); }
   };
 
@@ -308,7 +308,7 @@ export const EventManagement = () => {
           setEvents(prev => prev.map(e => e.id === eventId ? { ...e, status: 'CLOSED' } : e));
           toast.success('Đã kết thúc điểm danh và đóng sự kiện.');
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-        } catch (err: any) { toast.error(err.response?.data?.message || 'Không thể kết thúc điểm danh.'); } 
+        } catch (err: any) { toast.error(err.response?.data?.message || 'Không thể kết thúc điểm danh.'); }
         finally { setIsActionLoading(false); }
       }
     });
@@ -325,7 +325,7 @@ export const EventManagement = () => {
           setEvents(prev => prev.filter(e => e.id !== eventId));
           toast.success('Đã xóa sự kiện thành công.');
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-        } catch (err: any) { toast.error(err.response?.data?.message || 'Xóa sự kiện thất bại.'); } 
+        } catch (err: any) { toast.error(err.response?.data?.message || 'Xóa sự kiện thất bại.'); }
         finally { setIsActionLoading(false); }
       }
     });
@@ -368,7 +368,7 @@ export const EventManagement = () => {
       setFormData(prev => ({ ...prev, title: result.data.data.title, description: result.data.data.description }));
       setIsAiModalOpen(false); setAiPrompt('');
       toast.success('AI đã tạo nội dung thành công!');
-    } catch (err: any) { toast.error(err.response?.data?.message || 'Lỗi khi tạo nội dung.'); } 
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Lỗi khi tạo nội dung.'); }
     finally { setIsGenerating(false); }
   };
 
@@ -383,7 +383,7 @@ export const EventManagement = () => {
         setImageFile(null); setImagePreview('');
         toast.success('AI đã tạo poster thành công!');
       } else throw new Error('Không nhận được URL ảnh');
-    } catch (err: any) { toast.error(err.response?.data?.message || 'Lỗi khi tạo poster.'); } 
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Lỗi khi tạo poster.'); }
     finally { setIsGeneratingPoster(false); }
   };
 
@@ -439,7 +439,7 @@ export const EventManagement = () => {
         toast.success('Tạo sự kiện thành công!');
       }
       setIsModalOpen(false);
-    } catch (err: any) { toast.error(`Lỗi: ${err.response?.data?.message || err.message}`); } 
+    } catch (err: any) { toast.error(`Lỗi: ${err.response?.data?.message || err.message}`); }
     finally { setIsActionLoading(false); }
   };
 
@@ -666,7 +666,7 @@ export const EventManagement = () => {
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3 pt-2">
-                         <div>
+                        <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1.5">Số lượng tối đa</label>
                           <input type="number" min="0" value={formData.max_participants} onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-green-100 rounded-lg text-sm focus:ring-2 focus:ring-green-500 shadow-sm outline-none" placeholder="Không giới hạn" />
                         </div>
@@ -696,7 +696,7 @@ export const EventManagement = () => {
                         <select value={formData.registration_type} onChange={(e) => setFormData(prev => ({ ...prev, registration_type: e.target.value as 'NORMAL' | 'MANDATORY' | 'CHECKIN_ONLY' }))} className="w-full px-4 py-3 bg-white border border-green-100 rounded-xl text-sm font-medium focus:ring-2 focus:ring-green-500 shadow-sm outline-none">
                           <option value="NORMAL">Đăng ký tự nguyện</option>
                           <option value="MANDATORY">Bắt buộc tham gia</option>
-                          <option value="CHECKIN_ONLY">Chỉ Check-in, không cần đăng ký</option>
+                          <option value="CHECKIN_ONLY">Đến Check-in</option>
                         </select>
                       </div>
                     </div>
@@ -783,7 +783,7 @@ export const EventManagement = () => {
               {/* Modal Footer */}
               <div className="px-6 md:px-8 py-5 border-t border-green-50 bg-white flex flex-col-reverse sm:flex-row justify-between items-center gap-4 rounded-b-2xl flex-shrink-0">
                 <p className="text-xs font-bold text-orange-500 flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
-                  <AlertCircle size={14}/> Kiểm tra kỹ thông tin trước khi lưu.
+                  <AlertCircle size={14} /> Kiểm tra kỹ thông tin trước khi lưu.
                 </p>
                 <div className="flex gap-3 w-full sm:w-auto">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none px-6 py-2.5 rounded-lg font-bold text-green-700 bg-green-50 border border-green-100 hover:bg-green-100 transition-colors">
